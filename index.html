@@ -142,6 +142,16 @@
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   .tablink { text-align: center; margin-top: 20px; }
   .tablink a { color: var(--gold); font-weight: bold; cursor: pointer; font-size: 14px; }
+  .share-row { display: flex; gap: 14px; justify-content: center; margin: 22px 0 6px; }
+  .share-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 7px;
+    background: var(--glass); border: 1px solid var(--glass-border); border-radius: 20px;
+    padding: 16px 20px; cursor: pointer; font-family: inherit; font-size: 12px; font-weight: bold;
+    color: var(--text-dim); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    transition: transform 0.12s, background 0.15s; flex: 1;
+  }
+  .share-btn svg { width: 40px; height: 40px; }
+  .share-btn:active { transform: scale(0.94); background: var(--glass-strong); }
   .btn-invite {
     margin-top: 28px; margin-bottom: 8px;
     background: linear-gradient(135deg, rgba(255,210,154,0.25), rgba(255,126,95,0.2));
@@ -184,6 +194,20 @@
       <div class="label">Pincode</div>
       <div class="pin-digits" id="revealPin">0000</div>
       <div class="pin-hint" id="revealName">groepsnaam</div>
+    </div>
+    <div class="share-row">
+      <button class="share-btn" onclick="shareVia('whatsapp')" title="Delen via WhatsApp">
+        <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="16" fill="#25D366"/><path d="M23.5 8.5A10.45 10.45 0 0 0 16 5.5C10.75 5.5 6.5 9.75 6.5 15a9.44 9.44 0 0 0 1.4 5l-1.4 5.5 5.65-1.4A9.55 9.55 0 0 0 16 25.5c5.25 0 9.5-4.25 9.5-9.5 0-2.55-1-4.95-2.5-6.5zm-7.5 14.6a7.88 7.88 0 0 1-4-.95l-.3-.2-3.35.85.9-3.25-.2-.3A7.94 7.94 0 1 1 16 23.1zm4.35-5.9c-.25-.1-1.45-.7-1.65-.8-.2-.1-.35-.1-.5.1-.15.2-.6.8-.75.95-.15.15-.25.2-.5.05a6.4 6.4 0 0 1-1.9-1.15 7.1 7.1 0 0 1-1.3-1.6c-.15-.25 0-.4.1-.5l.35-.4c.1-.15.15-.25.25-.4.1-.15.05-.3 0-.4-.05-.15-.5-1.2-.7-1.65-.2-.45-.4-.35-.5-.35h-.45c-.15 0-.4.05-.6.3-.2.2-.8.75-.8 1.85s.8 2.15.9 2.3c.1.15 1.55 2.4 3.8 3.35.55.2.95.35 1.3.45.55.15 1.05.1 1.45.05.45-.05 1.4-.55 1.6-1.1.2-.55.2-1 .15-1.1-.05-.1-.2-.15-.45-.25z" fill="#fff"/></svg>
+        <span>WhatsApp</span>
+      </button>
+      <button class="share-btn" onclick="shareVia('sms')" title="Delen via Berichten">
+        <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="16" fill="#34AADC"/><path d="M7 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-5l-5 4v-4H9a2 2 0 0 1-2-2V9z" fill="#fff"/></svg>
+        <span>Berichten</span>
+      </button>
+      <button class="share-btn" onclick="shareVia('copy')" title="Link kopiëren">
+        <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="16" fill="rgba(255,255,255,0.18)"/><path d="M20 8h-9a2 2 0 0 0-2 2v13h2V10h9V8zm3 4h-8a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V14a2 2 0 0 0-2-2zm0 12h-8V14h8v10z" fill="#FFF8F2"/></svg>
+        <span>Kopieer</span>
+      </button>
     </div>
     <button class="btn" onclick="enterApp()">Aan de slag</button>
   </div>
@@ -587,9 +611,23 @@ function renderOverview() {
   });
   document.getElementById('ovSub').textContent = members.length + " personen \u00b7 " + orders.length + " rondjes geteld";
 }
-async function shareInvite() {
+function inviteText() {
   const url = window.location.href.split('?')[0];
-  const text = `Hey! Doe mee met onze vakantiegroep op Strandronde 🍹🌅\n\nGroep: ${group.name}\nPincode: ${group.pin}\n\nOpen de app: ${url}\n\nTik op "Inloggen met pincode" en vul de code in!`;
+  return `Hey! Doe mee met onze vakantiegroep op Strandronde 🍹🌅\n\nGroep: ${group.name}\nPincode: ${group.pin}\n\nOpen de app: ${url}\n\nTik op "Inloggen met pincode" en vul de code in!`;
+}
+function shareVia(channel) {
+  const text = inviteText();
+  const url = window.location.href.split('?')[0];
+  if (channel === 'whatsapp') {
+    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+  } else if (channel === 'sms') {
+    window.location.href = 'sms:?body=' + encodeURIComponent(text);
+  } else if (channel === 'copy') {
+    navigator.clipboard.writeText(text).then(() => toast("Uitnodiging gekopieerd! ✓")).catch(() => toast("Kopiëren niet gelukt"));
+  }
+}
+async function shareInvite() {
+  const text = inviteText();
   if (navigator.share) {
     try {
       await navigator.share({ title: `Strandronde – ${group.name}`, text });
