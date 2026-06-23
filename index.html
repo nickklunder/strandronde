@@ -307,16 +307,23 @@ const MENU = {
     { name: "Americano", emoji: "🍸", price: 7.00 },
     { name: "Dry Martini", emoji: "🍸", price: 7.00 },
     { name: "Hugo Spritz", emoji: "🥂", price: 7.00 },
-    { name: "Manhatan", emoji: "🍸", price: 7.00 },
+    { name: "Manhattan", emoji: "🍸", price: 7.00 },
     { name: "Mojito", emoji: "🍹", price: 8.00 },
     { name: "Daiquiri", emoji: "🍹", price: 8.00 },
     { name: "Margarita", emoji: "🍸", price: 8.00 },
     { name: "Tequila Sunrise", emoji: "🍹", price: 8.00 },
     { name: "Piña Colada", emoji: "🍹", price: 8.00 },
+    { name: "Aperol Spritz", emoji: "🥂", price: 8.00 },
+    { name: "Espresso Martini", emoji: "☕", price: 8.00 },
+    { name: "Lynchburg", emoji: "🥃", price: 8.00 },
+    { name: "Caipirinha", emoji: "🍹", price: 8.00 },
+    { name: "Negroni", emoji: "🍸", price: 8.00 },
+    { name: "Bloody Mary", emoji: "🍅", price: 8.00 },
+    { name: "Dark N'Stormy", emoji: "🌩️", price: 8.00 },
   ],
   "Virgin Cocktails": [
     { name: "San Francisco", emoji: "🍹", price: 5.50 },
-    { name: "Bahía Cooler", emoji: "🍹", price: 5.50 },
+    { name: "Bahia Cooler", emoji: "🍹", price: 5.50 },
     { name: "Virgin Spritz", emoji: "🥂", price: 5.50 },
     { name: "Fresh Strawberry", emoji: "🍓", price: 5.50 },
   ],
@@ -508,13 +515,34 @@ function makeProductCard(p) {
   const card = document.createElement('div');
   card.className = 'product';
   const cnt = countFor(p.name);
-  card.innerHTML = (cnt > 0 ? '<span class="badge">' + cnt + '</span>' : "") +
+  card.innerHTML = (cnt > 0 ? '<span class="badge" title="Verwijder één">' + cnt + ' ✕</span>' : "") +
     '<span class="emoji">' + p.emoji + '</span>' +
     '<span class="pname">' + p.name + '</span>' +
     '<br>' +
     '<span class="pprice">' + euro(p.price) + '</span>';
   card.onclick = () => addOrder(p.name, p.price);
+  if (cnt > 0) {
+    card.querySelector('.badge').onclick = (e) => { e.stopPropagation(); removeOrder(p.name); };
+  }
   return card;
+}
+async function removeOrder(product) {
+  if (!selectedMember) { toast("Kies eerst wie bestelt"); return; }
+  const idx = [...orders].map((o, i) => i).reverse().find(i => orders[i].member_id === selectedMember && orders[i].product === product);
+  if (idx === undefined) { toast("Niets te verwijderen"); return; }
+  const order = orders[idx];
+  orders.splice(idx, 1);
+  renderProducts(); renderTop(); renderTotals();
+  const memberName = (members.find(m => m.id === selectedMember) || {}).name || "";
+  toast(product + " voor " + memberName + " verwijderd");
+  if (order.id && !String(order.id).startsWith('temp-')) {
+    const { error } = await db.from('orders').delete().eq('id', order.id);
+    if (error) {
+      orders.splice(idx, 0, order);
+      renderProducts(); renderTop(); renderTotals();
+      toast("Niet verwijderd, probeer opnieuw");
+    }
+  }
 }
 async function addOrder(product, price) {
   if (!selectedMember) { toast("Kies eerst wie bestelt"); return; }
