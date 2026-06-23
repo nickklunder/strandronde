@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Strandronde</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --glass: rgba(255, 255, 255, 0.14);
+    --glass-strong: rgba(255, 255, 255, 0.22);
+    --glass-border: rgba(255, 255, 255, 0.35);
+    --glass-soft: rgba(255, 255, 255, 0.08);
+    --text: #FFF8F2;
+    --text-dim: rgba(255, 248, 242, 0.72);
+    --text-faint: rgba(255, 248, 242, 0.5);
+    --accent: #FF7E5F;
+    --accent-2: #FFB36B;
+    --gold: #FFD79A;
+    --shadow: 0 8px 32px rgba(60, 20, 40, 0.28);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
+    color: var(--text); min-height: 100vh; display: flex; justify-content: center; overflow-x: hidden;
+    background:
+      radial-gradient(circle at 50% 120%, #FF9966 0%, transparent 55%),
+      radial-gradient(circle at 80% 0%, #C44569 0%, transparent 50%),
+      radial-gradient(circle at 20% 10%, #6A4C93 0%, transparent 55%),
+      linear-gradient(180deg, #2B2D5B 0%, #843B62 45%, #F2784B 100%);
+    background-attachment: fixed;
+  }
+  body::before {
+    content: ""; position: fixed; bottom: -120px; left: 50%; transform: translateX(-50%);
+    width: 380px; height: 380px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,210,154,0.9) 0%, rgba(255,126,95,0.4) 45%, transparent 70%);
+    filter: blur(8px); pointer-events: none; z-index: 0; animation: bob 9s ease-in-out infinite;
+  }
+  @keyframes bob { 0%,100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(-22px); } }
+  .app { width: 100%; max-width: 480px; min-height: 100vh; position: relative; z-index: 1; display: flex; flex-direction: column; }
+  .glass {
+    background: var(--glass); backdrop-filter: blur(18px) saturate(140%); -webkit-backdrop-filter: blur(18px) saturate(140%);
+    border: 1px solid var(--glass-border); box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,0.25);
+  }
+  .header { padding: 30px 24px 18px; text-align: center; }
+  .logo { font-size: 12px; letter-spacing: 5px; text-transform: uppercase; color: var(--text-dim); font-weight: bold; }
+  .logo-main { font-size: 32px; font-weight: 800; letter-spacing: 0.5px; margin-top: 4px; text-shadow: 0 2px 20px rgba(0,0,0,0.25); }
+  .logo-sun { color: var(--gold); }
+  .screen { padding: 8px 22px 120px; flex: 1; }
+  .hidden { display: none !important; }
+  h2 { font-size: 24px; margin-bottom: 6px; letter-spacing: 0.3px; }
+  .sub { color: var(--text-dim); font-size: 14px; margin-bottom: 24px; line-height: 1.55; }
+  label { display: block; font-size: 12px; font-weight: bold; color: var(--text-dim); margin: 18px 0 8px; letter-spacing: 1px; text-transform: uppercase; }
+  input[type="text"], input[type="number"] {
+    width: 100%; padding: 15px 18px; border-radius: 16px; font-size: 16px;
+    background: var(--glass-soft); border: 1px solid var(--glass-border); color: var(--text); font-family: inherit;
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  }
+  input::placeholder { color: var(--text-faint); }
+  input:focus { outline: none; border-color: var(--gold); background: var(--glass); }
+  .btn {
+    width: 100%; padding: 17px; border-radius: 18px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 22px; font-family: inherit; color: var(--text);
+    background: linear-gradient(135deg, rgba(255,126,95,0.55), rgba(255,179,107,0.4));
+    border: 1px solid var(--glass-border); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,0.4); transition: transform 0.12s, box-shadow 0.12s, background 0.2s;
+  }
+  .btn:active { transform: scale(0.97); box-shadow: 0 4px 16px rgba(60,20,40,0.3); }
+  .btn:disabled { opacity: 0.5; }
+  .btn-sea { background: linear-gradient(135deg, rgba(106,76,147,0.5), rgba(196,69,105,0.4)); }
+  .btn-ghost { background: var(--glass-soft); color: var(--text); }
+  .name-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
+  .name-row input { flex: 1; }
+  .name-del {
+    border-radius: 14px; width: 50px; height: 50px; font-size: 22px; color: var(--text-dim); cursor: pointer; flex-shrink: 0;
+    background: var(--glass-soft); border: 1px solid var(--glass-border); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  }
+  .pin-card { border-radius: 26px; padding: 32px; text-align: center; margin: 22px 0; }
+  .pin-card .label { font-size: 12px; letter-spacing: 3px; color: var(--text-dim); text-transform: uppercase; }
+  .pin-digits { font-size: 54px; font-weight: 800; letter-spacing: 14px; margin: 12px 0 6px; color: var(--gold); text-shadow: 0 2px 24px rgba(255,210,154,0.4); }
+  .pin-hint { font-size: 14px; color: var(--text-dim); }
+  .pin-display { display: flex; justify-content: center; gap: 16px; margin: 28px 0 10px; }
+  .pin-dot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--glass-border); background: transparent; transition: all 0.15s; }
+  .pin-dot.filled { background: var(--gold); border-color: var(--gold); box-shadow: 0 0 16px rgba(255,210,154,0.6); }
+  .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 18px; }
+  .key {
+    padding: 20px; font-size: 26px; font-weight: bold; border-radius: 18px; color: var(--text); cursor: pointer; font-family: inherit;
+    background: var(--glass); border: 1px solid var(--glass-border); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.25); transition: transform 0.1s, background 0.15s;
+  }
+  .key:active { transform: scale(0.94); background: var(--glass-strong); }
+  .key-fn { background: transparent; border-color: transparent; font-size: 16px; color: var(--text-dim); box-shadow: none; }
+  .chips { display: flex; flex-wrap: wrap; gap: 9px; margin-bottom: 8px; }
+  .chip {
+    padding: 11px 20px; border-radius: 999px; font-size: 15px; font-weight: bold; cursor: pointer; color: var(--text);
+    background: var(--glass-soft); border: 1px solid var(--glass-border); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); transition: all 0.15s;
+  }
+  .chip.active { background: linear-gradient(135deg, rgba(255,126,95,0.7), rgba(255,179,107,0.6)); border-color: var(--gold); box-shadow: 0 4px 18px rgba(255,126,95,0.35); }
+  .cat-tabs { display: flex; gap: 9px; overflow-x: auto; margin-bottom: 18px; padding-bottom: 4px; }
+  .cat-tabs::-webkit-scrollbar { display: none; }
+  .cat-tab {
+    padding: 10px 18px; border-radius: 999px; white-space: nowrap; font-weight: bold; font-size: 14px; cursor: pointer; font-family: inherit; color: var(--text-dim);
+    background: var(--glass-soft); border: 1px solid transparent; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); transition: all 0.15s;
+  }
+  .cat-tab.active { color: var(--text); background: var(--glass-strong); border-color: var(--glass-border); }
+  .section-title { font-size: 12px; font-weight: bold; color: var(--gold); text-transform: uppercase; letter-spacing: 1.5px; margin: 6px 0 14px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; margin-bottom: 26px; }
+  .product {
+    border-radius: 22px; padding: 20px 14px; text-align: center; cursor: pointer; position: relative;
+    background: var(--glass); border: 1px solid var(--glass-border);
+    backdrop-filter: blur(16px) saturate(130%); -webkit-backdrop-filter: blur(16px) saturate(130%);
+    box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,0.3); transition: transform 0.12s, background 0.2s;
+  }
+  .product:active { transform: scale(0.94); background: var(--glass-strong); }
+  .product .emoji { font-size: 38px; display: block; margin-bottom: 8px; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.2)); }
+  .product .pname { font-weight: bold; font-size: 14px; line-height: 1.2; }
+  .product .pprice { color: var(--text-dim); font-size: 13px; margin-top: 4px; }
+  .product .badge {
+    position: absolute; top: -9px; right: -9px; min-width: 26px; height: 26px; font-size: 13px; font-weight: bold;
+    border-radius: 999px; display: flex; align-items: center; justify-content: center; padding: 0 7px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff;
+    box-shadow: 0 3px 12px rgba(255,126,95,0.5); border: 1px solid rgba(255,255,255,0.4);
+  }
+  .totals {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; z-index: 10;
+    padding: 16px 22px calc(16px + env(safe-area-inset-bottom)); display: flex; gap: 12px; align-items: center;
+    background: rgba(255,255,255,0.1); backdrop-filter: blur(22px) saturate(140%); -webkit-backdrop-filter: blur(22px) saturate(140%); border-top: 1px solid var(--glass-border);
+  }
+  .totals .tnum { flex: 1; }
+  .totals .tlabel { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+  .totals .tamount { font-size: 24px; font-weight: 800; }
+  .totals .btn { margin: 0; width: auto; padding: 14px 22px; }
+  .person-card { border-radius: 22px; padding: 18px 20px; margin-bottom: 13px; }
+  .person-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .person-name { font-weight: bold; font-size: 18px; }
+  .person-total { font-weight: 800; color: var(--gold); font-size: 18px; }
+  .person-items { font-size: 14px; color: var(--text-dim); line-height: 1.8; }
+  .toast {
+    position: fixed; bottom: 96px; left: 50%; transform: translateX(-50%) translateY(20px);
+    padding: 13px 24px; border-radius: 999px; font-weight: bold; font-size: 14px; opacity: 0; transition: all 0.3s; pointer-events: none; z-index: 50; color: var(--text);
+    background: rgba(43,45,91,0.6); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--glass-border);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .tablink { text-align: center; margin-top: 20px; }
+  .tablink a { color: var(--gold); font-weight: bold; cursor: pointer; font-size: 14px; }
+  .err {
+    background: rgba(196,69,105,0.35); color: #FFE0E0; padding: 12px 16px; border-radius: 14px; font-size: 14px; margin-top: 16px;
+    border: 1px solid rgba(255,255,255,0.2); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="logo">vakantie editie</div>
+    <div class="logo-main">Strand<span class="logo-sun">ronde</span> &#127865;</div>
+  </div>
+  <div class="screen" id="screen-welcome">
+    <h2>Wat ga je doen?</h2>
+    <p class="sub">Maak een nieuwe groep aan, of log in met de pincode van je groep.</p>
+    <button class="btn" onclick="show('create')">Nieuwe groep aanmaken</button>
+    <button class="btn btn-ghost" onclick="show('login')">Inloggen met pincode</button>
+  </div>
+  <div class="screen hidden" id="screen-create">
+    <h2>Nieuwe groep</h2>
+    <p class="sub">Geef je groep een naam en voeg de namen van iedereen toe.</p>
+    <label>Naam van de groep</label>
+    <input type="text" id="groupName" placeholder="bijv. Lloret 2026">
+    <label>Wie doen er mee?</label>
+    <div id="nameList"></div>
+    <button class="btn btn-ghost" onclick="addNameRow()">+ Naam toevoegen</button>
+    <div id="createErr"></div>
+    <button class="btn" id="createBtn" onclick="createGroup()">Groep aanmaken</button>
+    <div class="tablink"><a onclick="show('welcome')">&larr; Terug</a></div>
+  </div>
+  <div class="screen hidden" id="screen-pin">
+    <h2>Je groep is klaar! &#127881;</h2>
+    <p class="sub">Deel deze pincode met je vrienden. Hiermee logt iedereen in.</p>
+    <div class="pin-card glass">
+      <div class="label">Pincode</div>
+      <div class="pin-digits" id="revealPin">0000</div>
+      <div class="pin-hint" id="revealName">groepsnaam</div>
+    </div>
+    <button class="btn" onclick="enterApp()">Aan de slag</button>
+  </div>
+  <div class="screen hidden" id="screen-login">
+    <h2>Pincode invoeren</h2>
+    <p class="sub">Voer de 4-cijferige pincode van je groep in.</p>
+    <div class="pin-display">
+      <div class="pin-dot" id="dot0"></div><div class="pin-dot" id="dot1"></div>
+      <div class="pin-dot" id="dot2"></div><div class="pin-dot" id="dot3"></div>
+    </div>
+    <div id="loginErr"></div>
+    <div class="keypad">
+      <button class="key" onclick="pinPress('1')">1</button>
+      <button class="key" onclick="pinPress('2')">2</button>
+      <button class="key" onclick="pinPress('3')">3</button>
+      <button class="key" onclick="pinPress('4')">4</button>
+      <button class="key" onclick="pinPress('5')">5</button>
+      <button class="key" onclick="pinPress('6')">6</button>
+      <button class="key" onclick="pinPress('7')">7</button>
+      <button class="key" onclick="pinPress('8')">8</button>
+      <button class="key" onclick="pinPress('9')">9</button>
+      <button class="key key-fn" onclick="show('welcome')">terug</button>
+      <button class="key" onclick="pinPress('0')">0</button>
+      <button class="key key-fn" onclick="pinDelete()">&#9003;</button>
+    </div>
+  </div>
+  <div class="screen hidden" id="screen-main">
+    <h2 id="mainGroupName">Groep</h2>
+    <p class="sub">Kies wie er besteld, en tik het drankje aan.</p>
+    <label>Wie bestelt er?</label>
+    <div class="chips" id="memberChips"></div>
+    <div id="topSection">
+      <div class="section-title">&#11088; Meest besteld</div>
+      <div class="grid" id="topGrid"></div>
+    </div>
+    <div class="cat-tabs" id="catTabs"></div>
+    <div class="grid" id="productGrid"></div>
+    <div class="tablink"><a onclick="goOverview()">Bekijk overzicht &amp; rekening &rarr;</a></div>
+  </div>
+  <div class="screen hidden" id="screen-overview">
+    <h2>Het overzicht &#129534;</h2>
+    <p class="sub" id="ovSub">Wie heeft wat besteld deze vakantie.</p>
+    <div id="overviewList"></div>
+    <button class="btn btn-sea" onclick="show('main')">&larr; Terug naar bestellen</button>
+  </div>
+  <div class="totals hidden" id="totalsBar">
+    <div class="tnum">
+      <div class="tlabel">Totaal van de groep</div>
+      <div class="tamount" id="grandTotal">&euro;0,00</div>
+    </div>
+    <button class="btn btn-sea" onclick="goOverview()">Overzicht</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const SUPABASE_URL = "https://blxytqiamnuxgrhpfzrt.supabase.co";
+const SUPABASE_KEY = "sb_publishable_HmyjQagwDAbHcJ7IauTedg_PaFwKlhf";
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const MENU = {
+  "Fris & Sap": [
+    { name: "Coca Cola", emoji: "🥤", price: 2.90 },
+    { name: "Coca Cola Light", emoji: "🥤", price: 2.90 },
+    { name: "Coca Cola Zero", emoji: "🥤", price: 2.90 },
+    { name: "Fanta Naranja", emoji: "🍊", price: 2.90 },
+    { name: "Fanta Limón", emoji: "🍋", price: 2.90 },
+    { name: "Sprite", emoji: "🥤", price: 2.90 },
+    { name: "Nestea", emoji: "🧊", price: 3.20 },
+    { name: "Aquarius", emoji: "💧", price: 3.20 },
+    { name: "Appletiser", emoji: "🍏", price: 3.50 },
+    { name: "Royal Bliss Yuzu", emoji: "🍶", price: 3.70 },
+    { name: "Royal Bliss Berry", emoji: "🫐", price: 3.70 },
+    { name: "Royal Bliss Ginger Ale", emoji: "🍶", price: 3.70 },
+    { name: "Tónica Nordic", emoji: "🍶", price: 2.90 },
+  ],
+  "Warme dranken": [
+    { name: "Vaso de leche", emoji: "🥛", price: 1.60 },
+    { name: "Café Espresso", emoji: "☕", price: 2.40 },
+    { name: "Cortado", emoji: "☕", price: 2.40 },
+    { name: "Café con leche", emoji: "☕", price: 2.40 },
+    { name: "Infusiones", emoji: "🫖", price: 2.40 },
+    { name: "Cacao Caliente", emoji: "🍫", price: 2.40 },
+    { name: "Capuchino", emoji: "☕", price: 2.50 },
+    { name: "Café Bombón", emoji: "☕", price: 2.80 },
+    { name: "Carajillo", emoji: "☕", price: 3.70 },
+    { name: "Café Vienés", emoji: "☕", price: 4.50 },
+    { name: "Café Irlandés", emoji: "☕", price: 7.10 },
+    { name: "Café Calypso", emoji: "☕", price: 7.10 },
+  ],
+  "Bier": [
+    { name: "Cruzcampo 20 cl", emoji: "🍺", price: 3.20 },
+    { name: "Cruzcampo 40 cl", emoji: "🍺", price: 4.20 },
+    { name: "Heineken 00 33 cl", emoji: "🌾", price: 3.00 },
+    { name: "Cruzcampo Sin Gluten", emoji: "🍺", price: 3.50 },
+  ],
+  "Aperitief": [
+    { name: "Martini Bco / Rosso / Dry", emoji: "🍸", price: 4.00 },
+    { name: "Martini Sin Alcohol", emoji: "🍸", price: 4.00 },
+    { name: "Izaguirre", emoji: "🥂", price: 4.50 },
+  ],
+  "Digestief": [
+    { name: "Fernet Seleción Barceló", emoji: "🥃", price: 4.20 },
+    { name: "Orujo Hierbas", emoji: "🥃", price: 4.20 },
+    { name: "Vodka Pomelo", emoji: "🥃", price: 4.20 },
+    { name: "Grappa", emoji: "🥃", price: 4.20 },
+  ],
+  "Anijslikeur": [
+    { name: "Marie Brizard", emoji: "🥃", price: 4.20 },
+    { name: "Sambuca", emoji: "🥃", price: 4.20 },
+    { name: "Pastis", emoji: "🥃", price: 4.20 },
+  ],
+  "Wijn & Cava": [
+    { name: "Copa Vino Barceló", emoji: "🍷", price: 3.00 },
+    { name: "Copa Sangría 40 cl", emoji: "🍷", price: 4.00 },
+    { name: "Copa Cava / Bach Rosé", emoji: "🥂", price: 3.50 },
+  ],
+  "Finos y Generosos": [
+    { name: "Tio Pepe", emoji: "🍷", price: 3.50 },
+    { name: "Malaga", emoji: "🍷", price: 3.50 },
+    { name: "Oporto Tawny", emoji: "🍷", price: 3.50 },
+  ],
+  "Cocktails": [
+    { name: "Barceló Cocktail", emoji: "🍹", price: 7.00 },
+    { name: "Kir Royal", emoji: "🥂", price: 6.50 },
+    { name: "Bellini", emoji: "🥂", price: 6.50 },
+    { name: "Americano", emoji: "🍸", price: 7.00 },
+    { name: "Dry Martini", emoji: "🍸", price: 7.00 },
+    { name: "Hugo Spritz", emoji: "🥂", price: 7.00 },
+    { name: "Manhatan", emoji: "🍸", price: 7.00 },
+    { name: "Mojito", emoji: "🍹", price: 8.00 },
+    { name: "Daiquiri", emoji: "🍹", price: 8.00 },
+    { name: "Margarita", emoji: "🍸", price: 8.00 },
+    { name: "Tequila Sunrise", emoji: "🍹", price: 8.00 },
+    { name: "Piña Colada", emoji: "🍹", price: 8.00 },
+  ],
+  "Virgin Cocktails": [
+    { name: "San Francisco", emoji: "🍹", price: 5.50 },
+    { name: "Bahía Cooler", emoji: "🍹", price: 5.50 },
+    { name: "Virgin Spritz", emoji: "🥂", price: 5.50 },
+    { name: "Fresh Strawberry", emoji: "🍓", price: 5.50 },
+  ],
+  "Brandy & Cognac": [
+    { name: "Veterano", emoji: "🥃", price: 4.00 },
+    { name: "Osborne 103 Et. Bca.", emoji: "🥃", price: 4.00 },
+  ],
+  "Specialiteiten": [
+    { name: "Ron Miel", emoji: "🍯", price: 3.00 },
+    { name: "Licor Plátano", emoji: "🍌", price: 3.00 },
+  ],
+  "Likeuren": [
+    { name: "Amaretto Barceló", emoji: "🥃", price: 4.20 },
+    { name: "Licor de Café", emoji: "🥃", price: 4.20 },
+    { name: "Crema De Whisky", emoji: "🥃", price: 4.20 },
+    { name: "Apricot Brandy", emoji: "🥃", price: 4.50 },
+    { name: "Advokat", emoji: "🥃", price: 4.50 },
+    { name: "Marrasquino", emoji: "🥃", price: 4.50 },
+    { name: "Peach Snaps", emoji: "🍑", price: 4.50 },
+    { name: "Malibu", emoji: "🥥", price: 4.50 },
+    { name: "Limoncello", emoji: "🍋", price: 4.50 },
+  ],
+  "Gin": [
+    { name: "Larios", emoji: "🍸", price: 4.00 },
+    { name: "Bombay Original", emoji: "🍸", price: 4.50 },
+    { name: "Gordons", emoji: "🍸", price: 4.50 },
+    { name: "Master Gin", emoji: "🍸", price: 4.50 },
+    { name: "Gordons Pink", emoji: "🍸", price: 4.50 },
+  ],
+  "Rum": [
+    { name: "Havana 3 (Cuba)", emoji: "🥃", price: 4.50 },
+    { name: "Bacardi (Cuba)", emoji: "🥃", price: 4.50 },
+    { name: "Capitan Morgan White", emoji: "🥃", price: 4.50 },
+    { name: "Captain Morgan Spiced", emoji: "🥃", price: 5.70 },
+  ],
+  "Ron Canario": [
+    { name: "Arehucas Oro", emoji: "🥃", price: 4.50 },
+    { name: "Arehucas Blanco", emoji: "🥃", price: 4.50 },
+    { name: "Capirote Spiced", emoji: "🥃", price: 6.50 },
+  ],
+  "Whisky": [
+    { name: "J&B", emoji: "🥃", price: 5.00 },
+    { name: "Ballantines", emoji: "🥃", price: 5.00 },
+    { name: "Johnnie Walker Red", emoji: "🥃", price: 5.00 },
+    { name: "Tullamore (Irish)", emoji: "🥃", price: 5.00 },
+  ],
+  "Bourbon": [
+    { name: "Jim Beam", emoji: "🥃", price: 5.50 },
+  ],
+  "Tequila": [
+    { name: "Tequila Bco.", emoji: "🥃", price: 3.50 },
+  ],
+  "Vodka": [
+    { name: "Smirnoff Red", emoji: "🍸", price: 4.50 },
+    { name: "Absolut", emoji: "🍸", price: 5.50 },
+    { name: "Whitley Neil Artisanal", emoji: "🍸", price: 4.50 },
+    { name: "Koskenkorva", emoji: "🍸", price: 4.50 },
+  ],
+};
+
+let group = null, members = [], orders = [], selectedMember = null;
+let activeCat = Object.keys(MENU)[0];
+let pinBuffer = "";
+
+function show(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+  document.getElementById('screen-' + name).classList.remove('hidden');
+  const inApp = (name === 'main' || name === 'overview');
+  document.getElementById('totalsBar').classList.toggle('hidden', !inApp);
+  window.scrollTo(0, 0);
+}
+function euro(n) { return "\u20ac" + n.toFixed(2).replace('.', ','); }
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 1600);
+}
+function priceOf(productName) {
+  for (const cat in MENU) { const p = MENU[cat].find(x => x.name === productName); if (p) return p.price; }
+  return 0;
+}
+function emojiOf(productName) {
+  for (const cat in MENU) { const p = MENU[cat].find(x => x.name === productName); if (p) return p.emoji; }
+  return "\ud83c\udf79";
+}
+function addNameRow(value = "") {
+  const list = document.getElementById('nameList');
+  const row = document.createElement('div');
+  row.className = 'name-row';
+  row.innerHTML = '<input type="text" placeholder="naam" value="' + value + '"><button class="name-del" onclick="this.parentElement.remove()">\u00d7</button>';
+  list.appendChild(row);
+}
+async function createGroup() {
+  const name = document.getElementById('groupName').value.trim();
+  const nameInputs = [...document.querySelectorAll('#nameList input')];
+  const names = nameInputs.map(i => i.value.trim()).filter(Boolean);
+  const errBox = document.getElementById('createErr');
+  errBox.innerHTML = "";
+  if (!name) { errBox.innerHTML = '<div class="err">Geef je groep een naam.</div>'; return; }
+  if (names.length === 0) { errBox.innerHTML = '<div class="err">Voeg minstens \u00e9\u00e9n naam toe.</div>'; return; }
+  const btn = document.getElementById('createBtn');
+  btn.disabled = true; btn.textContent = "Bezig...";
+  const pin = String(Math.floor(1000 + Math.random() * 9000));
+  try {
+    const { data: g, error: ge } = await db.from('groups').insert({ name, pin }).select().single();
+    if (ge) throw ge;
+    const rows = names.map(n => ({ group_id: g.id, name: n }));
+    const { error: me } = await db.from('members').insert(rows);
+    if (me) throw me;
+    group = g;
+    document.getElementById('revealPin').textContent = pin;
+    document.getElementById('revealName').textContent = name;
+    show('pin');
+  } catch (e) {
+    errBox.innerHTML = '<div class="err">Er ging iets mis: ' + e.message + '</div>';
+  } finally {
+    btn.disabled = false; btn.textContent = "Groep aanmaken";
+  }
+}
+async function enterApp() { await loadGroupData(); show('main'); }
+function pinPress(d) { if (pinBuffer.length >= 4) return; pinBuffer += d; renderPinDots(); if (pinBuffer.length === 4) tryLogin(); }
+function pinDelete() { pinBuffer = pinBuffer.slice(0, -1); renderPinDots(); }
+function renderPinDots() { for (let i = 0; i < 4; i++) { document.getElementById('dot' + i).classList.toggle('filled', i < pinBuffer.length); } }
+async function tryLogin() {
+  const errBox = document.getElementById('loginErr');
+  errBox.innerHTML = "";
+  try {
+    const { data, error } = await db.from('groups').select().eq('pin', pinBuffer).limit(1);
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      errBox.innerHTML = '<div class="err">Geen groep gevonden met deze pincode.</div>';
+      pinBuffer = ""; renderPinDots(); return;
+    }
+    group = data[0]; await loadGroupData(); show('main');
+  } catch (e) {
+    errBox.innerHTML = '<div class="err">Er ging iets mis: ' + e.message + '</div>';
+    pinBuffer = ""; renderPinDots();
+  }
+}
+async function loadGroupData() {
+  const { data: m } = await db.from('members').select().eq('group_id', group.id);
+  members = m || [];
+  const { data: o } = await db.from('orders').select().eq('group_id', group.id);
+  orders = o || [];
+  selectedMember = members.length ? members[0].id : null;
+  document.getElementById('mainGroupName').textContent = group.name;
+  renderMembers(); renderCats(); renderProducts(); renderTop(); renderTotals();
+}
+function renderMembers() {
+  const box = document.getElementById('memberChips');
+  box.innerHTML = "";
+  members.forEach(mem => {
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (mem.id === selectedMember ? ' active' : '');
+    chip.textContent = mem.name;
+    chip.onclick = () => { selectedMember = mem.id; renderMembers(); };
+    box.appendChild(chip);
+  });
+}
+function renderCats() {
+  const box = document.getElementById('catTabs');
+  box.innerHTML = "";
+  Object.keys(MENU).forEach(cat => {
+    const t = document.createElement('button');
+    t.className = 'cat-tab' + (cat === activeCat ? ' active' : '');
+    t.textContent = cat;
+    t.onclick = () => { activeCat = cat; renderCats(); renderProducts(); };
+    box.appendChild(t);
+  });
+}
+function countFor(productName) { return orders.filter(o => o.product === productName).length; }
+function renderProducts() {
+  const box = document.getElementById('productGrid');
+  box.innerHTML = "";
+  MENU[activeCat].forEach(p => { box.appendChild(makeProductCard(p)); });
+}
+function renderTop() {
+  const counts = {};
+  orders.forEach(o => { counts[o.product] = (counts[o.product] || 0) + 1; });
+  const top = Object.keys(counts).sort((a, b) => counts[b] - counts[a]).slice(0, 5);
+  const section = document.getElementById('topSection');
+  const box = document.getElementById('topGrid');
+  box.innerHTML = "";
+  if (top.length === 0) { section.classList.add('hidden'); return; }
+  section.classList.remove('hidden');
+  top.forEach(name => { box.appendChild(makeProductCard({ name, emoji: emojiOf(name), price: priceOf(name) })); });
+}
+function makeProductCard(p) {
+  const card = document.createElement('div');
+  card.className = 'product';
+  const cnt = countFor(p.name);
+  card.innerHTML = (cnt > 0 ? '<span class="badge">' + cnt + '</span>' : "") +
+    '<span class="emoji">' + p.emoji + '</span>' +
+    '<span class="pname">' + p.name + '</span>' +
+    '<span class="pprice">' + euro(p.price) + '</span>';
+  card.onclick = () => addOrder(p.name, p.price);
+  return card;
+}
+async function addOrder(product, price) {
+  if (!selectedMember) { toast("Kies eerst wie bestelt"); return; }
+  const temp = { id: 'temp-' + Date.now(), member_id: selectedMember, product, price };
+  orders.push(temp);
+  renderProducts(); renderTop(); renderTotals();
+  const memberName = members.find(m => m.id === selectedMember) ? members.find(m => m.id === selectedMember).name : "";
+  toast(product + " voor " + memberName + " \u2713");
+  const { data, error } = await db.from('orders').insert({ group_id: group.id, member_id: selectedMember, product, price }).select().single();
+  if (error) {
+    orders = orders.filter(o => o.id !== temp.id);
+    renderProducts(); renderTop(); renderTotals();
+    toast("Niet opgeslagen, probeer opnieuw"); return;
+  }
+  const idx = orders.findIndex(o => o.id === temp.id);
+  if (idx >= 0) orders[idx] = data;
+}
+function renderTotals() {
+  const total = orders.reduce((s, o) => s + Number(o.price), 0);
+  document.getElementById('grandTotal').textContent = euro(total);
+}
+function goOverview() { renderOverview(); show('overview'); }
+function renderOverview() {
+  const box = document.getElementById('overviewList');
+  box.innerHTML = "";
+  members.forEach(mem => {
+    const mine = orders.filter(o => o.member_id === mem.id);
+    const total = mine.reduce((s, o) => s + Number(o.price), 0);
+    const grouped = {};
+    mine.forEach(o => { if (!grouped[o.product]) grouped[o.product] = { count: 0 }; grouped[o.product].count++; });
+    const items = Object.keys(grouped).map(name => emojiOf(name) + " " + name + " \u00d7" + grouped[name].count).join("  \u00b7  ") || "nog niks besteld";
+    const card = document.createElement('div');
+    card.className = 'person-card glass';
+    card.innerHTML = '<div class="person-head"><span class="person-name">' + mem.name + '</span><span class="person-total">' + euro(total) + '</span></div><div class="person-items">' + items + '</div>';
+    box.appendChild(card);
+  });
+  document.getElementById('ovSub').textContent = members.length + " personen \u00b7 " + orders.length + " rondjes geteld";
+}
+addNameRow(); addNameRow();
+show('welcome');
+</script>
+</body>
+</html>
