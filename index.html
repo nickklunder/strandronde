@@ -511,6 +511,7 @@ function makeProductCard(p) {
   card.innerHTML = (cnt > 0 ? '<span class="badge">' + cnt + '</span>' : "") +
     '<span class="emoji">' + p.emoji + '</span>' +
     '<span class="pname">' + p.name + '</span>' +
+    '<br>' +
     '<span class="pprice">' + euro(p.price) + '</span>';
   card.onclick = () => addOrder(p.name, p.price);
   return card;
