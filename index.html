@@ -297,6 +297,36 @@
     text-align: center; padding: 40px 20px; color: var(--text-dim);
   }
   .empty-state .empty-icon { font-size: 48px; margin-bottom: 12px; }
+
+  /* Auth mode toggle */
+  .auth-toggle {
+    display: flex; gap: 0; margin: 4px 0 20px;
+    border-radius: 16px; overflow: hidden; border: 1px solid var(--glass-border); background: var(--glass-soft);
+  }
+  .auth-toggle button {
+    flex: 1; padding: 13px 16px; font-size: 15px; font-weight: bold; cursor: pointer;
+    background: transparent; border: none; color: var(--text-dim); font-family: inherit; transition: all 0.15s;
+  }
+  .auth-toggle button.active { background: var(--glass-strong); color: var(--text); }
+
+  /* Group cards on "my groups" screen */
+  .group-card {
+    border-radius: 20px; padding: 18px 20px; margin-bottom: 12px; cursor: pointer;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    transition: transform 0.12s, background 0.2s;
+  }
+  .group-card:active { transform: scale(0.98); background: var(--glass-strong); }
+  .group-card .gc-name { font-weight: bold; font-size: 17px; }
+  .group-card .gc-meta { font-size: 12px; color: var(--text-dim); margin-top: 3px; }
+  .group-card .gc-arrow { font-size: 22px; color: var(--gold); flex-shrink: 0; }
+
+  /* Account bar (logout / user) */
+  .account-bar {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    margin-bottom: 18px; font-size: 14px; color: var(--text-dim);
+  }
+  .account-bar .logout-link { color: var(--gold); font-weight: bold; cursor: pointer; }
+  .switch-link { display: block; text-align: center; margin-top: 18px; color: var(--gold); font-weight: bold; cursor: pointer; font-size: 14px; }
 </style>
 </head>
 <body>
@@ -306,26 +336,64 @@
     <div class="logo-main">Strand<span class="logo-sun">ronde</span> &#127865;</div>
   </div>
 
-  <!-- Welcome -->
-  <div class="screen" id="screen-welcome">
-    <h2>Wat ga je doen?</h2>
-    <p class="sub">Maak een nieuwe groep aan, of log in met de pincode van je groep.</p>
-    <button class="btn" onclick="show('create')">Nieuwe groep aanmaken</button>
-    <button class="btn btn-ghost" onclick="show('login')">Inloggen met pincode</button>
+  <!-- Auth: login / register -->
+  <div class="screen" id="screen-auth">
+    <div class="auth-toggle">
+      <button id="authtab-login" class="active" onclick="setAuthMode('login')">Inloggen</button>
+      <button id="authtab-register" onclick="setAuthMode('register')">Registreren</button>
+    </div>
+
+    <!-- Login form -->
+    <div id="loginForm">
+      <h2>Welkom terug &#128075;</h2>
+      <p class="sub">Log in met je gebruikersnaam of e-mailadres.</p>
+      <label>Gebruikersnaam of e-mail</label>
+      <input type="text" id="loginIdentifier" placeholder="gebruikersnaam of e-mail" autocomplete="username">
+      <label>Wachtwoord</label>
+      <input type="password" id="loginPassword" placeholder="wachtwoord" autocomplete="current-password">
+      <div id="loginErr"></div>
+      <button class="btn" id="loginBtn" onclick="doLogin()">Inloggen</button>
+    </div>
+
+    <!-- Register form -->
+    <div id="registerForm" class="hidden">
+      <h2>Account aanmaken &#127881;</h2>
+      <p class="sub">Maak een account om je vakantiegroepen te onthouden.</p>
+      <label>Voornaam</label>
+      <input type="text" id="regFirstName" placeholder="bijv. Nick">
+      <label>Gebruikersnaam</label>
+      <input type="text" id="regUsername" placeholder="bijv. nickk" autocomplete="username">
+      <label>E-mailadres</label>
+      <input type="text" id="regEmail" placeholder="jij@email.com" autocomplete="email">
+      <label>Wachtwoord</label>
+      <input type="password" id="regPassword" placeholder="kies een wachtwoord" autocomplete="new-password">
+      <div id="registerErr"></div>
+      <button class="btn" id="registerBtn" onclick="doRegister()">Account aanmaken</button>
+    </div>
+  </div>
+
+  <!-- My groups -->
+  <div class="screen hidden" id="screen-groups">
+    <div class="account-bar">
+      <span id="accountGreeting">Hoi!</span>
+      <span class="logout-link" onclick="logout()">Uitloggen</span>
+    </div>
+    <h2>Mijn groepen &#127958;</h2>
+    <p class="sub">Kies een groep, of start/join er een nieuwe.</p>
+    <div id="groupsList"></div>
+    <button class="btn" onclick="show('create')">&#10133; Nieuwe groep aanmaken</button>
+    <button class="btn btn-ghost" onclick="openJoin()">&#128273; Groep joinen met pincode</button>
   </div>
 
   <!-- Create group -->
   <div class="screen hidden" id="screen-create">
     <h2>Nieuwe groep</h2>
-    <p class="sub">Geef je groep een naam en voeg de namen van iedereen toe.</p>
+    <p class="sub">Geef je groep een naam. Jij wordt automatisch lid; anderen joinen met de pincode.</p>
     <label>Naam van de groep</label>
     <input type="text" id="groupName" placeholder="bijv. Lloret 2026">
-    <label>Wie doen er mee?</label>
-    <div id="nameList"></div>
-    <button class="btn btn-ghost" onclick="addNameRow()">+ Naam toevoegen</button>
     <div id="createErr"></div>
     <button class="btn" id="createBtn" onclick="createGroup()">Groep aanmaken</button>
-    <div class="tablink"><a onclick="show('welcome')">&larr; Terug</a></div>
+    <div class="tablink"><a onclick="show('groups')">&larr; Terug naar mijn groepen</a></div>
   </div>
 
   <!-- PIN display -->
@@ -354,15 +422,15 @@
     <button class="btn" onclick="enterApp()">Aan de slag</button>
   </div>
 
-  <!-- Login -->
-  <div class="screen hidden" id="screen-login">
-    <h2>Pincode invoeren</h2>
-    <p class="sub">Voer de 4-cijferige pincode van je groep in.</p>
+  <!-- Join group via pin -->
+  <div class="screen hidden" id="screen-join">
+    <h2>Groep joinen</h2>
+    <p class="sub">Voer de 4-cijferige pincode van de groep in.</p>
     <div class="pin-display">
       <div class="pin-dot" id="dot0"></div><div class="pin-dot" id="dot1"></div>
       <div class="pin-dot" id="dot2"></div><div class="pin-dot" id="dot3"></div>
     </div>
-    <div id="loginErr"></div>
+    <div id="joinErr"></div>
     <div class="keypad">
       <button class="key" onclick="pinPress('1')">1</button>
       <button class="key" onclick="pinPress('2')">2</button>
@@ -373,7 +441,7 @@
       <button class="key" onclick="pinPress('7')">7</button>
       <button class="key" onclick="pinPress('8')">8</button>
       <button class="key" onclick="pinPress('9')">9</button>
-      <button class="key key-fn" onclick="show('welcome')">terug</button>
+      <button class="key key-fn" onclick="show('groups')">terug</button>
       <button class="key" onclick="pinPress('0')">0</button>
       <button class="key key-fn" onclick="pinDelete()">&#9003;</button>
     </div>
@@ -392,6 +460,7 @@
     <div class="cat-tabs" id="catTabs"></div>
     <div class="grid" id="productGrid"></div>
     <button class="btn btn-invite" onclick="shareInvite()">&#127881; Vrienden uitnodigen</button>
+    <span class="switch-link" onclick="show('groups')">&#8646; Wissel van groep</span>
   </div>
 
   <!-- Eten -->
@@ -611,6 +680,10 @@ let activeCat = Object.keys(MENU)[0];
 let pinBuffer = "";
 let overviewTab = 'total';
 let mealPhotoData = null;
+let currentUser = null;   // { id, first_name, username, email }
+let myGroups = [];        // memberships joined with groups
+let currentMemberId = null; // the member row that represents currentUser in the active group
+const SESSION_KEY = 'strandronde_user';
 
 // ── Utilities ────────────────────────────────────────────────────────────────
 
@@ -626,6 +699,7 @@ function show(name) {
   }
   if (name === 'overview') renderOverview();
   if (name === 'eten') renderMeals();
+  if (name === 'groups') renderGroups();
   window.scrollTo(0, 0);
 }
 
@@ -670,34 +744,171 @@ function emojiOf(productName) {
   return "🍹";
 }
 
-// ── Group setup ───────────────────────────────────────────────────────────────
+// ── Accounts (register / login / session) ──────────────────────────────────────
 
-function addNameRow(value = "") {
-  const list = document.getElementById('nameList');
-  const row = document.createElement('div');
-  row.className = 'name-row';
-  row.innerHTML = '<input type="text" placeholder="naam" value="' + escHtml(value) + '"><button class="name-del" onclick="this.parentElement.remove()">×</button>';
-  list.appendChild(row);
+async function hashPassword(pw) {
+  const data = new TextEncoder().encode(pw);
+  const buf = await crypto.subtle.digest('SHA-256', data);
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
 }
+
+function setAuthMode(mode) {
+  document.getElementById('authtab-login').classList.toggle('active', mode === 'login');
+  document.getElementById('authtab-register').classList.toggle('active', mode === 'register');
+  document.getElementById('loginForm').classList.toggle('hidden', mode !== 'login');
+  document.getElementById('registerForm').classList.toggle('hidden', mode !== 'register');
+}
+
+function validEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); }
+
+async function doRegister() {
+  const errBox = document.getElementById('registerErr');
+  errBox.innerHTML = "";
+  const firstName = document.getElementById('regFirstName').value.trim();
+  const username = document.getElementById('regUsername').value.trim().toLowerCase();
+  const email = document.getElementById('regEmail').value.trim().toLowerCase();
+  const password = document.getElementById('regPassword').value;
+  if (!firstName) { errBox.innerHTML = '<div class="err">Vul je voornaam in.</div>'; return; }
+  if (username.length < 3) { errBox.innerHTML = '<div class="err">Gebruikersnaam moet minstens 3 tekens zijn.</div>'; return; }
+  if (!validEmail(email)) { errBox.innerHTML = '<div class="err">Vul een geldig e-mailadres in.</div>'; return; }
+  if (password.length < 4) { errBox.innerHTML = '<div class="err">Wachtwoord moet minstens 4 tekens zijn.</div>'; return; }
+  const btn = document.getElementById('registerBtn');
+  btn.disabled = true; btn.textContent = "Bezig...";
+  try {
+    // Uniqueness check
+    const { data: existing } = await db.from('users').select('username,email').or(`username.eq.${username},email.eq.${email}`);
+    if (existing && existing.length) {
+      const dupUser = existing.some(u => u.username === username);
+      errBox.innerHTML = '<div class="err">' + (dupUser ? 'Deze gebruikersnaam is al in gebruik.' : 'Dit e-mailadres is al in gebruik.') + '</div>';
+      return;
+    }
+    const password_hash = await hashPassword(password);
+    const { data: user, error } = await db.from('users')
+      .insert({ first_name: firstName, username, email, password_hash })
+      .select('id,first_name,username,email').single();
+    if (error) throw error;
+    startSession(user);
+  } catch (e) {
+    errBox.innerHTML = '<div class="err">Er ging iets mis: ' + escHtml(e.message) + '</div>';
+  } finally {
+    btn.disabled = false; btn.textContent = "Account aanmaken";
+  }
+}
+
+async function doLogin() {
+  const errBox = document.getElementById('loginErr');
+  errBox.innerHTML = "";
+  const identifier = document.getElementById('loginIdentifier').value.trim().toLowerCase();
+  const password = document.getElementById('loginPassword').value;
+  if (!identifier || !password) { errBox.innerHTML = '<div class="err">Vul je gegevens in.</div>'; return; }
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true; btn.textContent = "Bezig...";
+  try {
+    const { data, error } = await db.from('users')
+      .select('id,first_name,username,email,password_hash')
+      .or(`username.eq.${identifier},email.eq.${identifier}`).limit(1);
+    if (error) throw error;
+    if (!data || !data.length) { errBox.innerHTML = '<div class="err">Geen account gevonden.</div>'; return; }
+    const hash = await hashPassword(password);
+    if (hash !== data[0].password_hash) { errBox.innerHTML = '<div class="err">Onjuist wachtwoord.</div>'; return; }
+    const { password_hash, ...user } = data[0];
+    startSession(user);
+  } catch (e) {
+    errBox.innerHTML = '<div class="err">Er ging iets mis: ' + escHtml(e.message) + '</div>';
+  } finally {
+    btn.disabled = false; btn.textContent = "Inloggen";
+  }
+}
+
+async function startSession(user) {
+  currentUser = user;
+  try { localStorage.setItem(SESSION_KEY, JSON.stringify(user)); } catch (e) {}
+  await afterLogin();
+}
+
+function logout() {
+  currentUser = null; group = null; myGroups = []; currentMemberId = null;
+  try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
+  document.getElementById('loginPassword').value = '';
+  document.getElementById('loginIdentifier').value = '';
+  setAuthMode('login');
+  show('auth');
+}
+
+async function afterLogin() {
+  await loadMyGroups();
+  // If arrived via invite link (?pin=1234), jump straight to joining
+  const params = new URLSearchParams(window.location.search);
+  const invitePin = (params.get('pin') || '').replace(/\D/g, '').slice(0, 4);
+  if (invitePin.length === 4) {
+    history.replaceState(null, '', window.location.pathname);
+    openJoin();
+    pinBuffer = invitePin; renderPinDots();
+    joinGroup();
+    return;
+  }
+  show('groups');
+}
+
+// ── My groups ───────────────────────────────────────────────────────────────
+
+async function loadMyGroups() {
+  const { data, error } = await db.from('memberships')
+    .select('member_id, groups(id,name,pin)')
+    .eq('user_id', currentUser.id);
+  myGroups = (error ? [] : (data || [])).filter(m => m.groups);
+}
+
+function renderGroups() {
+  document.getElementById('accountGreeting').textContent = 'Hoi ' + (currentUser ? currentUser.first_name : '') + '!';
+  const box = document.getElementById('groupsList');
+  box.innerHTML = '';
+  if (!myGroups.length) {
+    box.innerHTML = '<div class="empty-state"><div class="empty-icon">🏖️</div><p class="sub" style="margin:0">Je zit nog in geen enkele groep.<br>Maak er een aan of join met een pincode.</p></div>';
+    return;
+  }
+  myGroups.forEach(m => {
+    const g = m.groups;
+    const card = document.createElement('div');
+    card.className = 'group-card glass';
+    card.innerHTML = '<div><div class="gc-name">' + escHtml(g.name) + '</div><div class="gc-meta">Pincode ' + escHtml(g.pin) + '</div></div><span class="gc-arrow">&rarr;</span>';
+    card.onclick = () => enterGroup(g.id, m.member_id);
+    box.appendChild(card);
+  });
+}
+
+async function enterGroup(groupId, memberId) {
+  const m = myGroups.find(x => x.groups.id === groupId);
+  if (!m) { toast("Groep niet gevonden"); return; }
+  group = m.groups;
+  currentMemberId = memberId || m.member_id;
+  await loadGroupData();
+  show('main');
+}
+
+// ── Create / join group ────────────────────────────────────────────────────────
 
 async function createGroup() {
   const name = document.getElementById('groupName').value.trim();
-  const nameInputs = [...document.querySelectorAll('#nameList input')];
-  const names = nameInputs.map(i => i.value.trim()).filter(Boolean);
   const errBox = document.getElementById('createErr');
   errBox.innerHTML = "";
   if (!name) { errBox.innerHTML = '<div class="err">Geef je groep een naam.</div>'; return; }
-  if (names.length === 0) { errBox.innerHTML = '<div class="err">Voeg minstens één naam toe.</div>'; return; }
   const btn = document.getElementById('createBtn');
   btn.disabled = true; btn.textContent = "Bezig...";
   const pin = String(Math.floor(1000 + Math.random() * 9000));
   try {
     const { data: g, error: ge } = await db.from('groups').insert({ name, pin }).select().single();
     if (ge) throw ge;
-    const rows = names.map(n => ({ group_id: g.id, name: n }));
-    const { error: me } = await db.from('members').insert(rows);
+    const { data: mem, error: me } = await db.from('members')
+      .insert({ group_id: g.id, name: currentUser.first_name }).select().single();
     if (me) throw me;
+    const { error: mse } = await db.from('memberships')
+      .insert({ user_id: currentUser.id, group_id: g.id, member_id: mem.id });
+    if (mse) throw mse;
     group = g;
+    currentMemberId = mem.id;
+    myGroups.push({ member_id: mem.id, groups: g });
+    document.getElementById('groupName').value = '';
     document.getElementById('revealPin').textContent = pin;
     document.getElementById('revealName').textContent = name;
     show('pin');
@@ -710,21 +921,42 @@ async function createGroup() {
 
 async function enterApp() { await loadGroupData(); show('main'); }
 
-function pinPress(d) { if (pinBuffer.length >= 4) return; pinBuffer += d; renderPinDots(); if (pinBuffer.length === 4) tryLogin(); }
+function openJoin() {
+  pinBuffer = ""; renderPinDots();
+  document.getElementById('joinErr').innerHTML = "";
+  show('join');
+}
+
+function pinPress(d) { if (pinBuffer.length >= 4) return; pinBuffer += d; renderPinDots(); if (pinBuffer.length === 4) joinGroup(); }
 function pinDelete() { pinBuffer = pinBuffer.slice(0, -1); renderPinDots(); }
 function renderPinDots() { for (let i = 0; i < 4; i++) { document.getElementById('dot' + i).classList.toggle('filled', i < pinBuffer.length); } }
 
-async function tryLogin() {
-  const errBox = document.getElementById('loginErr');
+async function joinGroup() {
+  const errBox = document.getElementById('joinErr');
   errBox.innerHTML = "";
+  const pin = pinBuffer;
   try {
-    const { data, error } = await db.from('groups').select().eq('pin', pinBuffer).limit(1);
+    const { data, error } = await db.from('groups').select().eq('pin', pin).limit(1);
     if (error) throw error;
-    if (!data || data.length === 0) {
+    if (!data || !data.length) {
       errBox.innerHTML = '<div class="err">Geen groep gevonden met deze pincode.</div>';
       pinBuffer = ""; renderPinDots(); return;
     }
-    group = data[0]; await loadGroupData(); show('main');
+    const g = data[0];
+    // Already a member? Just enter.
+    const existing = myGroups.find(m => m.groups.id === g.id);
+    if (existing) { pinBuffer = ""; renderPinDots(); await enterGroup(g.id, existing.member_id); return; }
+    // Create a member row for this user and link membership.
+    const { data: mem, error: me } = await db.from('members')
+      .insert({ group_id: g.id, name: currentUser.first_name }).select().single();
+    if (me) throw me;
+    const { error: mse } = await db.from('memberships')
+      .insert({ user_id: currentUser.id, group_id: g.id, member_id: mem.id });
+    if (mse) throw mse;
+    myGroups.push({ member_id: mem.id, groups: g });
+    pinBuffer = ""; renderPinDots();
+    toast("Je zit nu in " + g.name + " ✓");
+    await enterGroup(g.id, mem.id);
   } catch (e) {
     errBox.innerHTML = '<div class="err">Er ging iets mis: ' + escHtml(e.message) + '</div>';
     pinBuffer = ""; renderPinDots();
@@ -744,7 +976,8 @@ async function loadGroupData() {
   } catch (e) {
     meals = [];
   }
-  selectedMember = members.length ? members[0].id : null;
+  if (currentMemberId && members.some(m => m.id === currentMemberId)) selectedMember = currentMemberId;
+  else selectedMember = members.length ? members[0].id : null;
   document.getElementById('mainGroupName').textContent = group.name;
   renderMembers(); renderCats(); renderProducts(); renderTop(); renderTotals();
 }
@@ -1107,8 +1340,9 @@ function renderOverviewDaily() {
 // ── Share ─────────────────────────────────────────────────────────────────────
 
 function inviteText() {
-  const url = window.location.href.split('?')[0];
-  return `Hey! Doe mee met onze vakantiegroep op Strandronde 🍹🌅\n\nGroep: ${group.name}\nPincode: ${group.pin}\n\nOpen de app: ${url}\n\nTik op "Inloggen met pincode" en vul de code in!`;
+  const base = window.location.href.split('?')[0];
+  const inviteUrl = base + '?pin=' + group.pin;
+  return `Hey! Doe mee met onze vakantiegroep op Strandronde 🍹🌅\n\nGroep: ${group.name}\nPincode: ${group.pin}\n\nMet deze link kom je er direct in (maak eerst een account aan):\n${inviteUrl}`;
 }
 
 function shareVia(channel) {
@@ -1136,8 +1370,18 @@ async function shareInvite() {
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-addNameRow(); addNameRow();
-show('welcome');
+async function init() {
+  let stored = null;
+  try { stored = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); } catch (e) {}
+  if (stored && stored.id) {
+    currentUser = stored;
+    await afterLogin();
+  } else {
+    setAuthMode('login');
+    show('auth');
+  }
+}
+init();
 </script>
 </body>
 </html>
