@@ -327,6 +327,20 @@
   }
   .account-bar .logout-link { color: var(--gold); font-weight: bold; cursor: pointer; }
   .switch-link { display: block; text-align: center; margin-top: 18px; color: var(--gold); font-weight: bold; cursor: pointer; font-size: 14px; }
+  .manage-link { display: inline-block; margin: 2px 0 10px; color: var(--gold); font-weight: bold; cursor: pointer; font-size: 13px; }
+
+  /* Member manager */
+  .member-manage-row {
+    display: flex; align-items: center; gap: 10px; padding: 12px 14px; margin-bottom: 9px;
+    border-radius: 16px; background: var(--glass-soft); border: 1px solid var(--glass-border);
+  }
+  .member-manage-row .mm-name { flex: 1; font-weight: bold; font-size: 15px; }
+  .member-manage-row .mm-you { font-size: 11px; color: var(--gold); text-transform: uppercase; letter-spacing: 1px; }
+  .member-manage-row .mm-del {
+    width: 34px; height: 34px; border-radius: 12px; font-size: 16px; flex-shrink: 0;
+    background: rgba(196,69,105,0.28); border: 1px solid var(--glass-border); color: #FFE0E0;
+    cursor: pointer; font-family: inherit; line-height: 1;
+  }
 </style>
 </head>
 <body>
@@ -453,6 +467,7 @@
     <p class="sub">Kies wie er besteld, en tik het drankje aan.</p>
     <label>Wie bestelt er?</label>
     <div class="chips" id="memberChips"></div>
+    <span class="manage-link" onclick="openMemberSheet()">&#9998; Deelnemers beheren</span>
     <div id="topSection">
       <div class="section-title">&#11088; Meest besteld</div>
       <div class="grid" id="topGrid"></div>
@@ -520,6 +535,22 @@
     <input type="text" id="mealDesc" placeholder="bijv. Paella, pizza, ontbijt...">
     <button class="btn" onclick="saveMeal()">Opslaan</button>
     <button class="btn btn-ghost" onclick="closeMealSheet()" style="margin-top:10px">Annuleren</button>
+  </div>
+</div>
+
+<!-- Member manager bottom sheet -->
+<div id="memberSheet" class="sheet-overlay hidden" onclick="closeMemberSheet(event)">
+  <div class="sheet-card glass" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <h3 style="margin-bottom:6px">Deelnemers beheren</h3>
+    <p class="sub" style="margin-bottom:14px;font-size:13px">Voeg iemand toe of verwijder een deelnemer uit deze groep.</p>
+    <div id="memberManageList"></div>
+    <label>Nieuwe deelnemer</label>
+    <div class="name-row">
+      <input type="text" id="newMemberName" placeholder="naam" onkeydown="if(event.key==='Enter')addMember()">
+      <button class="name-del" style="width:50px" onclick="addMember()">+</button>
+    </div>
+    <button class="btn btn-ghost" onclick="closeMemberSheet()" style="margin-top:16px">Klaar</button>
   </div>
 </div>
 
@@ -1154,6 +1185,97 @@ function renderSheetMembers() {
     chip.onclick = () => { selectedMember = mem.id; renderSheetMembers(); renderMembers(); };
     box.appendChild(chip);
   });
+}
+
+// ── Deelnemers beheren ─────────────────────────────────────────────────────────
+
+function openMemberSheet() {
+  document.getElementById('newMemberName').value = '';
+  renderMemberManager();
+  document.getElementById('memberSheet').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeMemberSheet(e) {
+  if (e && e.target !== document.getElementById('memberSheet')) return;
+  document.getElementById('memberSheet').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+function renderMemberManager() {
+  const box = document.getElementById('memberManageList');
+  box.innerHTML = '';
+  if (!members.length) {
+    box.innerHTML = '<p class="sub" style="font-size:13px">Nog geen deelnemers.</p>';
+    return;
+  }
+  members.forEach(mem => {
+    const row = document.createElement('div');
+    row.className = 'member-manage-row';
+    const isYou = mem.id === currentMemberId;
+    row.innerHTML = '<span class="mm-name">' + escHtml(mem.name) + '</span>' +
+      (isYou ? '<span class="mm-you">jij</span>' : '<button class="mm-del" title="Verwijderen">✕</button>');
+    if (!isYou) row.querySelector('.mm-del').onclick = () => removeMember(mem.id);
+    box.appendChild(row);
+  });
+}
+
+async function addMember() {
+  const input = document.getElementById('newMemberName');
+  const name = input.value.trim();
+  if (!name) { toast("Vul een naam in"); return; }
+  const temp = { id: 'temp-' + Date.now(), group_id: group.id, name };
+  members.push(temp);
+  input.value = '';
+  renderMemberManager(); renderMembers(); renderSheetMembers();
+  const { data, error } = await db.from('members').insert({ group_id: group.id, name }).select().single();
+  if (error) {
+    members = members.filter(m => m.id !== temp.id);
+    renderMemberManager(); renderMembers(); renderSheetMembers();
+    toast("Niet opgeslagen, probeer opnieuw"); return;
+  }
+  const idx = members.findIndex(m => m.id === temp.id);
+  if (idx >= 0) members[idx] = data;
+  toast(name + " toegevoegd ✓");
+}
+
+async function removeMember(memberId) {
+  const mem = members.find(m => m.id === memberId);
+  if (!mem) return;
+  if (memberId === currentMemberId) { toast("Je kunt jezelf niet verwijderen"); return; }
+  const orderCount = orders.filter(o => o.member_id === memberId).length;
+  const mealCount = meals.filter(m => m.member_id === memberId).length;
+  let msg = mem.name + " verwijderen?";
+  if (orderCount || mealCount) msg += "\n\nDit verwijdert ook " + orderCount + " drankje(s) en " + mealCount + " maaltijd(en).";
+  if (!confirm(msg)) return;
+
+  // Optimistic local removal
+  const removedMembers = members.filter(m => m.id === memberId);
+  const removedOrders = orders.filter(o => o.member_id === memberId);
+  const removedMeals = meals.filter(m => m.member_id === memberId);
+  members = members.filter(m => m.id !== memberId);
+  orders = orders.filter(o => o.member_id !== memberId);
+  meals = meals.filter(m => m.member_id !== memberId);
+  renderMemberManager(); renderMembers(); renderSheetMembers(); renderProducts(); renderTop(); renderTotals();
+
+  if (String(memberId).startsWith('temp-')) { toast(mem.name + " verwijderd"); return; }
+
+  try {
+    await db.from('orders').delete().eq('member_id', memberId);
+    await db.from('meals').delete().eq('member_id', memberId);
+    await db.from('memberships').delete().eq('member_id', memberId);
+    const { error } = await db.from('members').delete().eq('id', memberId);
+    if (error) throw error;
+    myGroups = myGroups.filter(g => g.member_id !== memberId);
+    toast(mem.name + " verwijderd");
+  } catch (e) {
+    // Rollback on failure
+    members = members.concat(removedMembers);
+    orders = orders.concat(removedOrders);
+    meals = meals.concat(removedMeals);
+    renderMemberManager(); renderMembers(); renderSheetMembers(); renderProducts(); renderTop(); renderTotals();
+    toast("Verwijderen mislukt, probeer opnieuw");
+  }
 }
 
 function triggerPhotoCapture() {
