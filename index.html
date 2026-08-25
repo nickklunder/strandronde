@@ -362,12 +362,45 @@
 
   /* Account bar (logout / user) */
   .account-bar {
-    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    display: flex; align-items: center; gap: 12px;
     margin-bottom: 18px; font-size: 14px; color: var(--text-dim);
   }
-  .account-bar .logout-link { color: var(--gold); font-weight: bold; cursor: pointer; }
-  .switch-link { display: block; text-align: center; margin-top: 18px; color: var(--gold); font-weight: bold; cursor: pointer; font-size: 14px; }
-  .manage-link { display: inline-block; margin: 2px 0 10px; color: var(--gold); font-weight: bold; cursor: pointer; font-size: 13px; }
+  .account-bar .ab-greet { flex: 1; font-weight: 600; color: var(--text); }
+  .account-bar .logout-link { color: var(--gold); font-weight: 700; cursor: pointer; }
+  .switch-link { display: block; text-align: center; margin-top: 18px; color: var(--gold); font-weight: 700; cursor: pointer; font-size: 14px; }
+  .manage-link { display: inline-block; margin: 2px 0 10px; color: var(--gold); font-weight: 700; cursor: pointer; font-size: 13px; }
+
+  /* Avatars */
+  .avatar {
+    border-radius: 50%; object-fit: cover; flex-shrink: 0;
+    background: var(--glass-strong); border: 2px solid var(--glass-border);
+    display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--text);
+  }
+  .avatar-sm { width: 40px; height: 40px; font-size: 16px; }
+  .avatar-sm.clickable { cursor: pointer; }
+  .avatar-edit {
+    width: 120px; height: 120px; margin: 6px auto 4px; position: relative; cursor: pointer; font-size: 42px;
+    border: 3px solid var(--glass-border);
+  }
+  .avatar-edit .ae-cam {
+    position: absolute; bottom: 0; right: 0; width: 38px; height: 38px; border-radius: 50%;
+    background: linear-gradient(100deg, var(--lime), var(--gold)); color: var(--ink);
+    display: flex; align-items: center; justify-content: center; font-size: 18px; border: 3px solid var(--bg);
+  }
+  .avatar-edit img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+  .fav-preview {
+    display: flex; align-items: center; gap: 10px; margin-top: 8px; padding: 14px 16px;
+    border-radius: 16px; background: var(--glass-soft); border: 1.5px solid var(--glass-border);
+  }
+  .fav-preview .fp-emoji { font-size: 26px; }
+  .fav-preview .fp-name { font-weight: 600; }
+  select {
+    width: 100%; padding: 16px 18px; border-radius: 16px; font-size: 16px; font-weight: 500;
+    background: var(--glass-soft); border: 1.5px solid var(--glass-border); color: var(--text); font-family: inherit;
+    appearance: none; -webkit-appearance: none; cursor: pointer;
+  }
+  select:focus { outline: none; border-color: var(--lime); }
+  select option { background: #1A1030; color: var(--text); }
 
   /* Member manager */
   .member-manage-row {
@@ -429,14 +462,43 @@
   <!-- My groups -->
   <div class="screen hidden" id="screen-groups">
     <div class="account-bar">
-      <span id="accountGreeting">Hoi!</span>
-      <span class="logout-link" onclick="logout()">Uitloggen</span>
+      <div class="avatar avatar-sm clickable" id="accountAvatar" onclick="openAccount()"></div>
+      <span class="ab-greet" id="accountGreeting">Hoi!</span>
+      <span class="logout-link" onclick="openAccount()">Profiel</span>
     </div>
     <h2>Mijn groepen &#127958;</h2>
     <p class="sub">Kies een groep, of start/join er een nieuwe.</p>
     <div id="groupsList"></div>
     <button class="btn" onclick="show('create')">&#10133; Nieuwe groep aanmaken</button>
     <button class="btn btn-ghost" onclick="openJoin()">&#128273; Groep joinen met pincode</button>
+  </div>
+
+  <!-- Account / profile -->
+  <div class="screen hidden" id="screen-account">
+    <h2>Mijn profiel &#128100;</h2>
+    <p class="sub">Beheer je gegevens, foto en favoriete drankje.</p>
+    <div class="avatar avatar-edit" id="avatarEdit" onclick="triggerAvatarPick()">
+      <span id="avatarFallback">🙂</span>
+      <img id="avatarImg" class="hidden" alt="profielfoto">
+      <span class="ae-cam">📷</span>
+    </div>
+    <input type="file" id="avatarInput" accept="image/*" style="display:none" onchange="handleAvatarSelected(event)">
+    <label>Voornaam</label>
+    <input type="text" id="accFirstName" placeholder="je voornaam">
+    <label>E-mailadres</label>
+    <input type="text" id="accEmail" placeholder="jij@email.com" autocomplete="email">
+    <label>Favoriete drankje</label>
+    <select id="accFavorite"></select>
+    <div class="fav-preview" id="favPreview" style="display:none">
+      <span class="fp-emoji" id="favEmoji"></span>
+      <span class="fp-name" id="favName"></span>
+    </div>
+    <label>Nieuw wachtwoord</label>
+    <input type="password" id="accPassword" placeholder="laat leeg om niet te wijzigen" autocomplete="new-password">
+    <div id="accountErr"></div>
+    <button class="btn" id="accountBtn" onclick="saveAccount()">Opslaan</button>
+    <button class="btn btn-ghost" onclick="show('groups')" style="margin-top:12px">&larr; Terug</button>
+    <span class="switch-link" onclick="logout()">Uitloggen</span>
   </div>
 
   <!-- Create group -->
@@ -856,7 +918,7 @@ async function doRegister() {
     const password_hash = await hashPassword(password);
     const { data: user, error } = await db.from('users')
       .insert({ first_name: firstName, username, email, password_hash })
-      .select('id,first_name,username,email').single();
+      .select('id,first_name,username,email,avatar_url,favorite_drink').single();
     if (error) throw error;
     startSession(user);
   } catch (e) {
@@ -876,7 +938,7 @@ async function doLogin() {
   btn.disabled = true; btn.textContent = "Bezig...";
   try {
     const { data, error } = await db.from('users')
-      .select('id,first_name,username,email,password_hash')
+      .select('id,first_name,username,email,password_hash,avatar_url,favorite_drink')
       .or(`username.eq.${identifier},email.eq.${identifier}`).limit(1);
     if (error) throw error;
     if (!data || !data.length) { errBox.innerHTML = '<div class="err">Geen account gevonden.</div>'; return; }
@@ -921,6 +983,109 @@ async function afterLogin() {
   show('groups');
 }
 
+// ── Account / profiel ──────────────────────────────────────────────────────────
+
+let accountAvatarData; // undefined = onveranderd, string = nieuwe foto
+
+function populateFavoriteSelect(selected) {
+  const sel = document.getElementById('accFavorite');
+  let html = '<option value="">— Kies je favoriet —</option>';
+  Object.keys(MENU).forEach(cat => {
+    html += `<optgroup label="${escHtml(cat)}">`;
+    MENU[cat].forEach(p => {
+      html += `<option value="${escHtml(p.name)}"${p.name === selected ? ' selected' : ''}>${p.emoji} ${escHtml(p.name)}</option>`;
+    });
+    html += '</optgroup>';
+  });
+  sel.innerHTML = html;
+  sel.onchange = updateFavPreview;
+}
+
+function updateFavPreview() {
+  const name = document.getElementById('accFavorite').value;
+  const box = document.getElementById('favPreview');
+  if (!name) { box.style.display = 'none'; return; }
+  box.style.display = 'flex';
+  document.getElementById('favEmoji').textContent = emojiOf(name);
+  document.getElementById('favName').textContent = name;
+}
+
+function openAccount() {
+  accountAvatarData = undefined;
+  document.getElementById('accFirstName').value = currentUser.first_name || '';
+  document.getElementById('accEmail').value = currentUser.email || '';
+  document.getElementById('accPassword').value = '';
+  document.getElementById('accountErr').innerHTML = '';
+  populateFavoriteSelect(currentUser.favorite_drink || '');
+  updateFavPreview();
+  const img = document.getElementById('avatarImg');
+  const fb = document.getElementById('avatarFallback');
+  if (currentUser.avatar_url) {
+    img.src = currentUser.avatar_url; img.classList.remove('hidden'); fb.classList.add('hidden');
+  } else {
+    img.classList.add('hidden'); img.src = '';
+    fb.classList.remove('hidden');
+    fb.textContent = currentUser.first_name ? currentUser.first_name.charAt(0).toUpperCase() : '🙂';
+  }
+  show('account');
+}
+
+function triggerAvatarPick() { document.getElementById('avatarInput').click(); }
+
+async function handleAvatarSelected(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  try {
+    const compressed = await compressImage(file, 400, 0.8);
+    accountAvatarData = compressed;
+    const img = document.getElementById('avatarImg');
+    img.src = compressed; img.classList.remove('hidden');
+    document.getElementById('avatarFallback').classList.add('hidden');
+  } catch (e) { toast("Foto kon niet geladen worden"); }
+  event.target.value = '';
+}
+
+async function saveAccount() {
+  const errBox = document.getElementById('accountErr');
+  errBox.innerHTML = '';
+  const firstName = document.getElementById('accFirstName').value.trim();
+  const email = document.getElementById('accEmail').value.trim().toLowerCase();
+  const favorite = document.getElementById('accFavorite').value;
+  const newPassword = document.getElementById('accPassword').value;
+  if (!firstName) { errBox.innerHTML = '<div class="err">Vul je voornaam in.</div>'; return; }
+  if (!validEmail(email)) { errBox.innerHTML = '<div class="err">Vul een geldig e-mailadres in.</div>'; return; }
+  if (!favorite) { errBox.innerHTML = '<div class="err">Kies je favoriete drankje.</div>'; return; }
+  if (newPassword && newPassword.length < 4) { errBox.innerHTML = '<div class="err">Wachtwoord moet minstens 4 tekens zijn.</div>'; return; }
+  const btn = document.getElementById('accountBtn');
+  btn.disabled = true; btn.textContent = 'Bezig...';
+  try {
+    if (email !== (currentUser.email || '').toLowerCase()) {
+      const { data: dup } = await db.from('users').select('id').eq('email', email).neq('id', currentUser.id).limit(1);
+      if (dup && dup.length) { errBox.innerHTML = '<div class="err">Dit e-mailadres is al in gebruik.</div>'; return; }
+    }
+    const patch = { first_name: firstName, email, favorite_drink: favorite };
+    if (accountAvatarData !== undefined) patch.avatar_url = accountAvatarData;
+    if (newPassword) patch.password_hash = await hashPassword(newPassword);
+    const { data, error } = await db.from('users').update(patch).eq('id', currentUser.id)
+      .select('id,first_name,username,email,avatar_url,favorite_drink').single();
+    if (error) throw error;
+    const nameChanged = data.first_name !== currentUser.first_name;
+    currentUser = data;
+    try { localStorage.setItem(SESSION_KEY, JSON.stringify(currentUser)); } catch (e) {}
+    // Houd de deelnemersnaam in al mijn groepen gelijk
+    if (nameChanged && myGroups.length) {
+      const ids = myGroups.map(m => m.member_id).filter(Boolean);
+      if (ids.length) await db.from('members').update({ name: firstName }).in('id', ids);
+    }
+    toast('Profiel opgeslagen ✓');
+    show('groups');
+  } catch (e) {
+    errBox.innerHTML = '<div class="err">Er ging iets mis: ' + escHtml(e.message) + '</div>';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Opslaan';
+  }
+}
+
 // ── My groups ───────────────────────────────────────────────────────────────
 
 async function loadMyGroups() {
@@ -930,8 +1095,17 @@ async function loadMyGroups() {
   myGroups = (error ? [] : (data || [])).filter(m => m.groups);
 }
 
+function applyAvatar(el, user, fallbackText) {
+  if (user && user.avatar_url) {
+    el.innerHTML = '<img src="' + user.avatar_url + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover" alt="">';
+  } else {
+    el.textContent = fallbackText || (user && user.first_name ? user.first_name.charAt(0).toUpperCase() : '🙂');
+  }
+}
+
 function renderGroups() {
   document.getElementById('accountGreeting').textContent = 'Hoi ' + (currentUser ? currentUser.first_name : '') + '!';
+  applyAvatar(document.getElementById('accountAvatar'), currentUser);
   const box = document.getElementById('groupsList');
   box.innerHTML = '';
   if (!myGroups.length) {
