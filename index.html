@@ -279,6 +279,12 @@
     font-size: 16px; font-weight: 800; padding: 8px 0 12px;
     border-bottom: 1px solid var(--glass-border); margin-bottom: 12px; color: var(--gold);
   }
+  .receipt-btn {
+    width: 100%; margin-top: 6px; padding: 12px; border-radius: 14px; cursor: pointer;
+    font-family: inherit; font-size: 13px; font-weight: 700; color: var(--text);
+    background: var(--glass-soft); border: 1.5px solid var(--glass-border); transition: transform 0.12s, background 0.15s;
+  }
+  .receipt-btn:active { transform: scale(0.98); background: var(--glass-strong); }
   .day-drinks-list { margin-bottom: 14px; }
   .day-drink-item {
     display: flex; align-items: center; gap: 8px; padding: 7px 0;
@@ -1787,6 +1793,14 @@ function renderOverviewTotal() {
       `<div class="pc-body"><div class="person-head"><span class="person-name">${escHtml(st.mem.name)}</span><span class="person-total">${euro(st.total)}</span></div><div class="person-items">${items}</div></div>`;
     box.appendChild(card);
   });
+
+  if (orders.length > 0) {
+    const btn = document.createElement('button');
+    btn.className = 'btn'; btn.style.marginTop = '18px';
+    btn.innerHTML = '🧾 Bonnetje van de hele reis';
+    btn.onclick = exportReceiptTrip;
+    box.appendChild(btn);
+  }
 }
 
 function renderOverviewDaily() {
@@ -1810,7 +1824,7 @@ function renderOverviewDaily() {
     else days[k].meals.push(ev.data);
   });
 
-  Object.values(days).reverse().forEach(day => {
+  Object.entries(days).reverse().forEach(([dayK, day]) => {
     const dateStr = day.date.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
     const section = document.createElement('div');
     section.className = 'day-section';
@@ -1841,8 +1855,146 @@ function renderOverviewDaily() {
     }
 
     section.innerHTML = html;
+    if (day.drinks.length > 0) {
+      const btn = document.createElement('button');
+      btn.className = 'receipt-btn';
+      btn.innerHTML = '🧾 Bonnetje van deze dag';
+      btn.onclick = () => exportReceiptDay(dayK);
+      section.appendChild(btn);
+    }
     box.appendChild(section);
   });
+}
+
+// ── Bonnetje exporteren (.jpg) ──────────────────────────────────────────────────
+
+function money(n) { return Number(n).toFixed(2).replace('.', ','); }
+
+function receiptData(subset, periodLabel) {
+  const counts = {};
+  subset.forEach(o => {
+    if (!counts[o.product]) counts[o.product] = { count: 0, total: 0, price: Number(o.price) };
+    counts[o.product].count++; counts[o.product].total += Number(o.price);
+  });
+  const items = Object.keys(counts)
+    .sort((a, b) => counts[b].total - counts[a].total)
+    .map(name => ({ name, count: counts[name].count, total: counts[name].total, price: counts[name].price }));
+  const perMap = {};
+  subset.forEach(o => { const m = members.find(x => x.id === o.member_id); const nm = m ? m.name : '?'; perMap[nm] = (perMap[nm] || 0) + Number(o.price); });
+  const perPerson = Object.keys(perMap).map(nm => ({ name: nm, total: perMap[nm] })).sort((a, b) => b.total - a.total);
+  return {
+    groupName: group ? group.name : 'Strandronde',
+    location: (group && group.location_name) || '',
+    periodLabel,
+    generatedAt: new Date().toLocaleString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
+    items, perPerson,
+    grandTotal: subset.reduce((s, o) => s + Number(o.price), 0),
+    drinkCount: subset.length,
+    peopleCount: perPerson.length
+  };
+}
+
+function rowH(t) {
+  return { title: 50, center: 32, 'center-bold': 34, 'small-center': 24, left: 30, 'left-bold': 30, 'small-left': 22, cols: 30, 'cols-big': 42, sep: 26 }[t] || 26;
+}
+function drawDashed(ctx, x1, y, x2) {
+  ctx.save(); ctx.strokeStyle = '#bcb3a6'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x2, y); ctx.stroke(); ctx.restore();
+}
+function fitText(ctx, text, maxW) {
+  if (ctx.measureText(text).width <= maxW) return text;
+  let t = text;
+  while (t.length > 1 && ctx.measureText(t + '…').width > maxW) t = t.slice(0, -1);
+  return t + '…';
+}
+
+function drawReceipt(d) {
+  const scale = 3, W = 384, pad = 30;
+  const rows = [];
+  rows.push(['title', 'STRANDRONDE']);
+  rows.push(['center', d.groupName]);
+  if (d.location) rows.push(['small-center', '📍 ' + d.location]);
+  rows.push(['sep']);
+  rows.push(['center-bold', d.periodLabel]);
+  rows.push(['small-center', 'geprint ' + d.generatedAt]);
+  rows.push(['sep']);
+  d.items.forEach(it => {
+    rows.push(['cols', it.count + 'x ' + it.name, money(it.total)]);
+    rows.push(['small-left', '      @ ' + money(it.price) + ' per stuk']);
+  });
+  rows.push(['sep']);
+  rows.push(['left-bold', 'PER PERSOON']);
+  d.perPerson.forEach(p => rows.push(['cols', p.name, money(p.total)]));
+  rows.push(['sep']);
+  rows.push(['cols-big', 'TOTAAL', 'EUR ' + money(d.grandTotal)]);
+  rows.push(['small-center', d.drinkCount + ' drankjes · ' + d.peopleCount + ' personen']);
+  rows.push(['sep']);
+  rows.push(['center', 'Bedankt & proost! 🍹']);
+  rows.push(['small-center', '~ strandronde ~']);
+
+  const H = pad * 2 + rows.reduce((s, r) => s + rowH(r[0]), 0);
+  const canvas = document.createElement('canvas');
+  canvas.width = W * scale; canvas.height = Math.ceil(H) * scale;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(scale, scale);
+  ctx.fillStyle = '#FBFAF6'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#17130E';
+  const rightX = W - pad;
+  let y = pad;
+  rows.forEach(r => {
+    y += rowH(r[0]);
+    const baseline = y - 9;
+    if (r[0] === 'sep') { drawDashed(ctx, pad, baseline - 5, W - pad); return; }
+    if (r[0] === 'title') { ctx.font = 'bold 30px "Courier New", monospace'; ctx.textAlign = 'center'; ctx.fillText(r[1], W / 2, baseline); }
+    else if (r[0] === 'center') { ctx.font = '16px "Courier New", monospace'; ctx.textAlign = 'center'; ctx.fillText(r[1], W / 2, baseline); }
+    else if (r[0] === 'center-bold') { ctx.font = 'bold 18px "Courier New", monospace'; ctx.textAlign = 'center'; ctx.fillText(r[1], W / 2, baseline); }
+    else if (r[0] === 'small-center') { ctx.font = '12px "Courier New", monospace'; ctx.fillStyle = '#7a7266'; ctx.textAlign = 'center'; ctx.fillText(r[1], W / 2, baseline); ctx.fillStyle = '#17130E'; }
+    else if (r[0] === 'left' || r[0] === 'left-bold') { ctx.font = (r[0] === 'left-bold' ? 'bold ' : '') + '14px "Courier New", monospace'; ctx.textAlign = 'left'; ctx.fillText(r[1], pad, baseline); }
+    else if (r[0] === 'small-left') { ctx.font = '11px "Courier New", monospace'; ctx.fillStyle = '#8a8175'; ctx.textAlign = 'left'; ctx.fillText(r[1], pad, baseline); ctx.fillStyle = '#17130E'; }
+    else if (r[0] === 'cols' || r[0] === 'cols-big') {
+      const big = r[0] === 'cols-big';
+      ctx.font = (big ? 'bold 20px' : '15px') + ' "Courier New", monospace';
+      ctx.textAlign = 'right'; ctx.fillText(r[2], rightX, baseline);
+      const rw = ctx.measureText(r[2]).width;
+      ctx.textAlign = 'left';
+      ctx.fillText(fitText(ctx, r[1], W - pad * 2 - rw - 10), pad, baseline);
+    }
+  });
+  return canvas;
+}
+
+async function outputImage(canvas, filename) {
+  const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.92));
+  if (!blob) { toast('Export mislukt'); return; }
+  try {
+    const file = new File([blob], filename, { type: 'image/jpeg' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: 'Strandronde bonnetje' });
+      return;
+    }
+  } catch (e) { if (e.name === 'AbortError') return; }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  toast('Bonnetje opgeslagen ✓');
+}
+
+function buildAndExport(subset, periodLabel, filename) {
+  if (!subset.length) { toast('Nog geen drankjes om te exporteren'); return; }
+  outputImage(drawReceipt(receiptData(subset, periodLabel)), filename);
+}
+
+function exportReceiptTrip() {
+  buildAndExport(orders, 'HELE REIS', 'strandronde-hele-reis.jpg');
+}
+
+function exportReceiptDay(dayK) {
+  const subset = orders.filter(o => dayKey(o) === dayK);
+  if (!subset.length) { toast('Geen drankjes op deze dag'); return; }
+  const label = capitalizeFirst(getTimestamp(subset[0]).toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' }));
+  buildAndExport(subset, label, 'strandronde-' + dayK.replace(/[^0-9]/g, '-') + '.jpg');
 }
 
 // ── Share ─────────────────────────────────────────────────────────────────────
