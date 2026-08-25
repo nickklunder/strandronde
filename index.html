@@ -370,6 +370,45 @@
   }
   .empty-state .empty-icon { font-size: 48px; margin-bottom: 12px; }
 
+  /* Momenten / reisverhaal */
+  .story-hero {
+    border-radius: 28px; padding: 28px 24px; margin: 4px 0 22px; position: relative; overflow: hidden;
+    background: linear-gradient(150deg, var(--coral), var(--magenta) 55%, var(--violet));
+    box-shadow: 0 26px 60px -24px rgba(255,45,155,0.55);
+  }
+  .story-hero .sh-kicker { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.85); }
+  .story-hero .sh-title { font-size: 34px; font-weight: 700; letter-spacing: -1px; line-height: 1.05; margin: 6px 0; color: #fff; }
+  .story-hero .sh-meta { font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.9); }
+  .story-day { font-size: 12px; font-weight: 700; color: var(--gold); text-transform: uppercase; letter-spacing: 1.5px; margin: 22px 0 12px; }
+  .story-card {
+    position: relative; border-radius: 24px; overflow: hidden; margin-bottom: 16px;
+    box-shadow: 0 20px 46px -22px rgba(0,0,0,0.75); border: 1px solid var(--glass-border);
+    animation: rise 0.5s cubic-bezier(0.2,0.7,0.2,1) both;
+  }
+  .story-card img.sc-photo { width: 100%; display: block; max-height: 460px; object-fit: cover; }
+  .story-card .sc-overlay {
+    position: absolute; left: 0; right: 0; bottom: 0; padding: 46px 18px 16px;
+    background: linear-gradient(to top, rgba(8,4,16,0.9), rgba(8,4,16,0.55) 45%, transparent);
+  }
+  .story-card .sc-caption { font-size: 18px; font-weight: 700; line-height: 1.25; letter-spacing: -0.3px; color: #fff; }
+  .story-card .sc-tags { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; align-items: center; }
+  .story-pill {
+    display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px;
+    font-size: 12px; font-weight: 700; color: #fff;
+    background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.25); backdrop-filter: blur(6px);
+  }
+  .story-pill.drink { background: linear-gradient(100deg, rgba(200,255,61,0.9), rgba(255,206,61,0.9)); color: var(--ink); border-color: transparent; }
+  .story-pill .sp-av { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; margin: -2px 0 -2px -4px; }
+  .story-card .sc-del {
+    position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; border-radius: 50%; font-size: 14px;
+    background: rgba(8,4,16,0.55); border: 1px solid rgba(255,255,255,0.25); color: #fff; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; backdrop-filter: blur(6px); font-family: inherit;
+  }
+  .story-card .sc-badge {
+    position: absolute; top: 12px; left: 12px; padding: 5px 11px; border-radius: 999px; font-size: 11px; font-weight: 700;
+    background: rgba(8,4,16,0.55); border: 1px solid rgba(255,255,255,0.25); color: #fff; backdrop-filter: blur(6px);
+  }
+
   /* Auth mode toggle */
   .auth-toggle {
     display: flex; gap: 0; margin: 4px 0 20px;
@@ -623,6 +662,12 @@
     <button class="btn" onclick="openMealSheet()" style="margin-top:8px">&#128247; Maaltijd loggen</button>
   </div>
 
+  <!-- Momenten / reisverhaal -->
+  <div class="screen hidden" id="screen-moments">
+    <div id="storyContent"></div>
+    <button class="btn" onclick="openMomentSheet()" style="margin-top:4px">&#10024; Moment vastleggen</button>
+  </div>
+
   <!-- Overzicht -->
   <div class="screen hidden" id="screen-overview">
     <h2>Overzicht &#128202;</h2>
@@ -644,6 +689,10 @@
     <button class="nav-tab" id="nav-eten" onclick="show('eten')">
       <span class="nav-icon">&#127869;</span>
       <span class="nav-label">Eten</span>
+    </button>
+    <button class="nav-tab" id="nav-moments" onclick="show('moments')">
+      <span class="nav-icon">&#10024;</span>
+      <span class="nav-label">Momenten</span>
     </button>
     <button class="nav-tab" id="nav-overview" onclick="show('overview')">
       <span class="nav-icon">&#128202;</span>
@@ -672,6 +721,30 @@
     <input type="text" id="mealDesc" placeholder="bijv. Paella, pizza, ontbijt...">
     <button class="btn" onclick="saveMeal()">Opslaan</button>
     <button class="btn btn-ghost" onclick="closeMealSheet()" style="margin-top:10px">Annuleren</button>
+  </div>
+</div>
+
+<!-- Moment bottom sheet -->
+<div id="momentSheet" class="sheet-overlay hidden" onclick="closeMomentSheet(event)">
+  <div class="sheet-card glass" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <h3 style="margin-bottom:6px">Moment vastleggen &#10024;</h3>
+    <p class="sub" style="margin-bottom:14px;font-size:13px">Een bijzondere ronde of foto voor het reisverhaal.</p>
+    <label>Van wie?</label>
+    <div class="chips" id="momentMemberChips"></div>
+    <div class="photo-picker" id="momentPickerArea" onclick="triggerMomentPhoto()">
+      <div class="photo-placeholder" id="momentPlaceholder">
+        &#128247;<br><span style="font-size:13px;margin-top:6px;display:block">Tik voor foto of gallerij</span>
+      </div>
+      <img id="momentPreviewImg" class="photo-preview-img hidden" alt="preview">
+    </div>
+    <input type="file" id="momentPhotoInput" accept="image/*" style="display:none" onchange="handleMomentPhoto(event)">
+    <label>Bijschrift</label>
+    <input type="text" id="momentCaption" placeholder="bijv. Eerste mojito bij zonsondergang!">
+    <label>Welk drankje? <span style="text-transform:none;letter-spacing:0;font-weight:500;opacity:0.7">(optioneel)</span></label>
+    <select id="momentDrink"></select>
+    <button class="btn" onclick="saveMoment()">Opslaan</button>
+    <button class="btn btn-ghost" onclick="closeMomentSheet()" style="margin-top:10px">Annuleren</button>
   </div>
 </div>
 
@@ -843,7 +916,7 @@ const MENU = {
   ],
 };
 
-let group = null, members = [], orders = [], meals = [], selectedMember = null, memberAvatars = {};
+let group = null, members = [], orders = [], meals = [], moments = [], selectedMember = null, memberAvatars = {};
 let activeCat = Object.keys(MENU)[0];
 let pinBuffer = "";
 let overviewTab = 'total';
@@ -858,15 +931,16 @@ const SESSION_KEY = 'strandronde_user';
 function show(name) {
   document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
   document.getElementById('screen-' + name).classList.remove('hidden');
-  const inApp = ['main', 'eten', 'overview'].includes(name);
+  const inApp = ['main', 'eten', 'moments', 'overview'].includes(name);
   document.getElementById('bottomNav').classList.toggle('hidden', !inApp);
   if (inApp) {
-    ['main', 'eten', 'overview'].forEach(tab => {
+    ['main', 'eten', 'moments', 'overview'].forEach(tab => {
       document.getElementById('nav-' + tab).classList.toggle('active', tab === name);
     });
   }
   if (name === 'overview') renderOverview();
   if (name === 'eten') renderMeals();
+  if (name === 'moments') renderStory();
   if (name === 'groups') renderGroups();
   window.scrollTo(0, 0);
 }
@@ -1350,6 +1424,12 @@ async function loadGroupData() {
   } catch (e) {
     meals = [];
   }
+  try {
+    const { data: mo, error: moe } = await db.from('moments').select().eq('group_id', group.id).order('created_at', { ascending: true });
+    moments = moe ? [] : (mo || []);
+  } catch (e) {
+    moments = [];
+  }
   // Profielfoto's per deelnemer (gekoppeld via memberships → users)
   memberAvatars = {};
   try {
@@ -1713,6 +1793,184 @@ async function removeMeal(mealId) {
       toast("Verwijderen mislukt");
     }
   }
+}
+
+// ── Momenten / reisverhaal ──────────────────────────────────────────────────────
+
+let momentPhotoData = null;
+
+function openMomentSheet() {
+  momentPhotoData = null;
+  const img = document.getElementById('momentPreviewImg');
+  img.src = ''; img.classList.add('hidden');
+  document.getElementById('momentPlaceholder').classList.remove('hidden');
+  document.getElementById('momentCaption').value = '';
+  populateMomentDrink();
+  renderMomentMembers();
+  document.getElementById('momentSheet').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeMomentSheet(e) {
+  if (e && e.target !== document.getElementById('momentSheet')) return;
+  document.getElementById('momentSheet').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+function renderMomentMembers() {
+  const box = document.getElementById('momentMemberChips');
+  box.innerHTML = '';
+  members.forEach(mem => {
+    const chip = document.createElement('div');
+    chip.className = 'chip has-av' + (mem.id === selectedMember ? ' active' : '');
+    chip.innerHTML = memberChipHtml(mem);
+    chip.onclick = () => { selectedMember = mem.id; renderMomentMembers(); renderMembers(); };
+    box.appendChild(chip);
+  });
+}
+
+function populateMomentDrink() {
+  const sel = document.getElementById('momentDrink');
+  let html = '<option value="">— Geen / n.v.t. —</option>';
+  Object.keys(MENU).forEach(cat => {
+    html += `<optgroup label="${escHtml(cat)}">`;
+    MENU[cat].forEach(p => { html += `<option value="${escHtml(p.name)}">${p.emoji} ${escHtml(p.name)}</option>`; });
+    html += '</optgroup>';
+  });
+  sel.innerHTML = html;
+}
+
+function triggerMomentPhoto() { document.getElementById('momentPhotoInput').click(); }
+
+async function handleMomentPhoto(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  try {
+    const compressed = await compressImage(file, 1100, 0.8);
+    momentPhotoData = compressed;
+    const img = document.getElementById('momentPreviewImg');
+    img.src = compressed; img.classList.remove('hidden');
+    document.getElementById('momentPlaceholder').classList.add('hidden');
+  } catch (e) { toast("Foto kon niet geladen worden"); }
+  event.target.value = '';
+}
+
+async function saveMoment() {
+  if (!momentPhotoData) { toast("Voeg eerst een foto toe"); return; }
+  if (!selectedMember) { toast("Kies van wie dit moment is"); return; }
+  const caption = document.getElementById('momentCaption').value.trim();
+  const drink = document.getElementById('momentDrink').value || null;
+  const temp = { id: 'temp-' + Date.now(), group_id: group.id, member_id: selectedMember, caption, drink, photo_url: momentPhotoData, created_at: new Date().toISOString() };
+  moments.push(temp);
+  document.getElementById('momentSheet').classList.add('hidden');
+  document.body.style.overflow = '';
+  renderStory();
+  toast("Moment vastgelegd ✨");
+  const { data, error } = await db.from('moments')
+    .insert({ group_id: group.id, member_id: selectedMember, caption, drink, photo_url: momentPhotoData }).select().single();
+  if (error) {
+    moments = moments.filter(m => m.id !== temp.id);
+    renderStory();
+    toast("Niet opgeslagen — maak de moments tabel aan in Supabase");
+    return;
+  }
+  const idx = moments.findIndex(m => m.id === temp.id);
+  if (idx >= 0) moments[idx] = data;
+}
+
+async function removeMoment(momentId) {
+  const idx = moments.findIndex(m => String(m.id) === String(momentId));
+  if (idx === -1) return;
+  if (!confirm('Dit moment verwijderen?')) return;
+  const mo = moments[idx];
+  moments.splice(idx, 1);
+  renderStory();
+  toast("Moment verwijderd");
+  if (!String(mo.id).startsWith('temp-')) {
+    const { error } = await db.from('moments').delete().eq('id', mo.id);
+    if (error) { moments.splice(idx, 0, mo); renderStory(); toast("Verwijderen mislukt"); }
+  }
+}
+
+function memberAvatarHtml(memberId, cls) {
+  const av = memberAvatars[memberId];
+  return av ? `<img class="${cls}" src="${av}" alt="">` : '';
+}
+
+function renderStory() {
+  const box = document.getElementById('storyContent');
+  box.innerHTML = '';
+
+  // Verzamel alle foto-items: momenten + maaltijden, chronologisch
+  const items = [
+    ...moments.map(m => ({ kind: 'moment', data: m, ts: getTimestamp(m) })),
+    ...meals.filter(m => m.photo_url).map(m => ({ kind: 'meal', data: m, ts: getTimestamp(m) }))
+  ].sort((a, b) => a.ts - b.ts);
+
+  // Hero
+  const dates = items.map(i => i.ts).sort((a, b) => a - b);
+  let range = '';
+  if (dates.length) {
+    const f = dates[0].toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' });
+    const l = dates[dates.length - 1].toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' });
+    range = f === l ? f : f + ' – ' + l;
+  }
+  const photoCount = items.length;
+  const hero = document.createElement('div');
+  hero.className = 'story-hero';
+  hero.innerHTML =
+    `<div class="sh-kicker">Ons reisverhaal</div>` +
+    `<div class="sh-title">${escHtml(group ? group.name : 'Strandronde')}</div>` +
+    `<div class="sh-meta">${photoCount} moment${photoCount !== 1 ? 'en' : ''}${range ? ' &middot; ' + range : ''}${group && group.location_name ? ' &middot; 📍 ' + escHtml(group.location_name) : ''}</div>`;
+  box.appendChild(hero);
+
+  if (!items.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.innerHTML = '<div class="empty-icon">✨📸</div><p class="sub" style="margin:0">Nog geen momenten vastgelegd.<br>Leg een bijzondere ronde vast met een foto — die verschijnt hier als reisverhaal.</p>';
+    box.appendChild(empty);
+    return;
+  }
+
+  // Groepeer per dag
+  const days = {};
+  items.forEach(it => {
+    const k = it.ts.toLocaleDateString('nl-NL');
+    (days[k] = days[k] || { date: it.ts, items: [] }).items.push(it);
+  });
+
+  Object.values(days).forEach(day => {
+    const dstr = capitalizeFirst(day.date.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' }));
+    const hdr = document.createElement('div');
+    hdr.className = 'story-day';
+    hdr.textContent = dstr;
+    box.appendChild(hdr);
+
+    day.items.forEach(it => {
+      const d = it.data;
+      const mem = members.find(m => m.id === d.member_id);
+      const name = mem ? mem.name : '?';
+      const time = formatTime(d);
+      const caption = it.kind === 'moment' ? (d.caption || '') : (d.description || 'Maaltijd');
+      const avImg = memberAvatarHtml(d.member_id, 'sp-av');
+
+      let tags = `<span class="story-pill">${avImg}${escHtml(name)} &middot; ${time}</span>`;
+      if (it.kind === 'moment' && d.drink) tags += `<span class="story-pill drink">${emojiOf(d.drink)} ${escHtml(d.drink)}</span>`;
+      const badge = it.kind === 'meal' ? '<span class="sc-badge">🍽️ Eten</span>' : '';
+      const delBtn = it.kind === 'moment' ? `<button class="sc-del" onclick="removeMoment('${escHtml(String(d.id))}')">✕</button>` : '';
+
+      const card = document.createElement('div');
+      card.className = 'story-card';
+      card.innerHTML =
+        `<img class="sc-photo" src="${d.photo_url}" alt="">` +
+        badge + delBtn +
+        `<div class="sc-overlay">` +
+        (caption ? `<div class="sc-caption">${escHtml(caption)}</div>` : '') +
+        `<div class="sc-tags">${tags}</div>` +
+        `</div>`;
+      box.appendChild(card);
+    });
+  });
 }
 
 // ── Overzicht ─────────────────────────────────────────────────────────────────
