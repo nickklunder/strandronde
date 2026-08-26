@@ -409,6 +409,44 @@
     background: rgba(8,4,16,0.55); border: 1px solid rgba(255,255,255,0.25); color: #fff; backdrop-filter: blur(6px);
   }
 
+  /* Prikbord */
+  textarea {
+    width: 100%; padding: 15px 18px; border-radius: 16px; font-size: 16px; font-weight: 500; line-height: 1.5;
+    background: var(--glass-soft); border: 1.5px solid var(--glass-border); color: var(--text); font-family: inherit;
+    resize: vertical; min-height: 90px;
+  }
+  textarea::placeholder { color: var(--text-faint); }
+  textarea:focus { outline: none; border-color: var(--lime); background: var(--glass); }
+  .pin-card {
+    border-radius: 20px; padding: 16px 18px; margin-bottom: 12px; cursor: pointer; position: relative;
+    transition: transform 0.12s, background 0.2s;
+  }
+  .pin-card:active { transform: scale(0.98); background: var(--glass-strong); }
+  .pin-card .pc-title { font-size: 17px; font-weight: 700; letter-spacing: -0.3px; padding-right: 30px; }
+  .pin-card .pc-body {
+    font-size: 14px; color: var(--text-dim); line-height: 1.5; margin-top: 4px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .pin-card .pc-foot { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .pin-chip {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700;
+    padding: 4px 10px; border-radius: 999px; background: var(--glass-soft); border: 1px solid var(--glass-border); color: var(--text-dim);
+  }
+  .pin-card .pc-thumb { position: absolute; top: 14px; right: 14px; width: 44px; height: 44px; border-radius: 12px; object-fit: cover; border: 1px solid var(--glass-border); }
+  .pin-detail-img { width: 100%; border-radius: 16px; margin: 14px 0; max-height: 340px; object-fit: cover; }
+  .pin-detail-body { font-size: 15px; line-height: 1.65; color: var(--text); white-space: pre-wrap; margin-top: 6px; }
+  .pin-detail-meta { font-size: 12px; color: var(--text-dim); margin-top: 10px; }
+  .pin-file-chip {
+    display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px;
+    background: var(--glass-soft); border: 1.5px solid var(--glass-border); margin-top: 8px; font-size: 14px; font-weight: 600;
+  }
+  .pin-file-chip .pfc-x { margin-left: auto; cursor: pointer; color: var(--text-dim); font-size: 18px; }
+  .pin-del-btn {
+    position: absolute; top: 12px; right: 12px; width: 28px; height: 28px; border-radius: 50%; font-size: 13px;
+    background: var(--glass-soft); border: 1px solid var(--glass-border); color: var(--text-dim); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-family: inherit;
+  }
+
   /* Auth mode toggle */
   .auth-toggle {
     display: flex; gap: 0; margin: 4px 0 20px;
@@ -668,6 +706,14 @@
     <button class="btn" onclick="openMomentSheet()" style="margin-top:4px">&#10024; Moment vastleggen</button>
   </div>
 
+  <!-- Pin / prikbord -->
+  <div class="screen hidden" id="screen-pin">
+    <h2>Prikbord &#128204;</h2>
+    <p class="sub">Deel tips, activiteiten, links en bijlagen met de groep.</p>
+    <div id="pinList"></div>
+    <button class="btn" onclick="openPinSheet()" style="margin-top:8px">&#10133; Bericht toevoegen</button>
+  </div>
+
   <!-- Overzicht -->
   <div class="screen hidden" id="screen-overview">
     <h2>Overzicht &#128202;</h2>
@@ -694,11 +740,45 @@
       <span class="nav-icon">&#10024;</span>
       <span class="nav-label">Momenten</span>
     </button>
+    <button class="nav-tab" id="nav-pin" onclick="show('pin')">
+      <span class="nav-icon">&#128204;</span>
+      <span class="nav-label">Pin</span>
+    </button>
     <button class="nav-tab" id="nav-overview" onclick="show('overview')">
       <span class="nav-icon">&#128202;</span>
       <span class="nav-label">Overzicht</span>
       <span class="nav-total" id="navTotal"></span>
     </button>
+  </div>
+</div>
+
+<!-- Pin add bottom sheet -->
+<div id="pinSheet" class="sheet-overlay hidden" onclick="closePinSheet(event)">
+  <div class="sheet-card glass" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <h3 style="margin-bottom:6px">Bericht toevoegen &#128204;</h3>
+    <p class="sub" style="margin-bottom:14px;font-size:13px">Titel, tekst en eventueel een link of bijlage.</p>
+    <label>Titel</label>
+    <input type="text" id="pinTitle" placeholder="bijv. Kaartjes waterpark">
+    <label>Tekst</label>
+    <textarea id="pinBody" rows="4" placeholder="Schrijf hier je tip, activiteit of uitleg..."></textarea>
+    <label>Link <span style="text-transform:none;letter-spacing:0;font-weight:500;opacity:0.7">(optioneel)</span></label>
+    <input type="text" id="pinLink" placeholder="https://...">
+    <label>Bijlage <span style="text-transform:none;letter-spacing:0;font-weight:500;opacity:0.7">(foto of document, optioneel)</span></label>
+    <div id="pinFilePreview"></div>
+    <button class="btn btn-ghost" onclick="triggerPinFile()" style="margin-top:8px">&#128206; Bestand kiezen</button>
+    <input type="file" id="pinFileInput" accept="image/*,application/pdf,.pdf,.doc,.docx,.txt" style="display:none" onchange="handlePinFile(event)">
+    <button class="btn" onclick="savePin()">Plaatsen</button>
+    <button class="btn btn-ghost" onclick="closePinSheet()" style="margin-top:10px">Annuleren</button>
+  </div>
+</div>
+
+<!-- Pin detail bottom sheet -->
+<div id="pinDetailSheet" class="sheet-overlay hidden" onclick="closePinDetail(event)">
+  <div class="sheet-card glass" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div id="pinDetailContent"></div>
+    <button class="btn btn-ghost" onclick="closePinDetail()" style="margin-top:14px">Sluiten</button>
   </div>
 </div>
 
@@ -916,7 +996,7 @@ const MENU = {
   ],
 };
 
-let group = null, members = [], orders = [], meals = [], moments = [], selectedMember = null, memberAvatars = {};
+let group = null, members = [], orders = [], meals = [], moments = [], pins = [], selectedMember = null, memberAvatars = {};
 let activeCat = Object.keys(MENU)[0];
 let pinBuffer = "";
 let overviewTab = 'total';
@@ -931,16 +1011,17 @@ const SESSION_KEY = 'strandronde_user';
 function show(name) {
   document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
   document.getElementById('screen-' + name).classList.remove('hidden');
-  const inApp = ['main', 'eten', 'moments', 'overview'].includes(name);
+  const inApp = ['main', 'eten', 'moments', 'pin', 'overview'].includes(name);
   document.getElementById('bottomNav').classList.toggle('hidden', !inApp);
   if (inApp) {
-    ['main', 'eten', 'moments', 'overview'].forEach(tab => {
+    ['main', 'eten', 'moments', 'pin', 'overview'].forEach(tab => {
       document.getElementById('nav-' + tab).classList.toggle('active', tab === name);
     });
   }
   if (name === 'overview') renderOverview();
   if (name === 'eten') renderMeals();
   if (name === 'moments') renderStory();
+  if (name === 'pin') renderPins();
   if (name === 'groups') renderGroups();
   window.scrollTo(0, 0);
 }
@@ -1429,6 +1510,12 @@ async function loadGroupData() {
     moments = moe ? [] : (mo || []);
   } catch (e) {
     moments = [];
+  }
+  try {
+    const { data: pn, error: pne } = await db.from('pins').select().eq('group_id', group.id).order('created_at', { ascending: false });
+    pins = pne ? [] : (pn || []);
+  } catch (e) {
+    pins = [];
   }
   // Profielfoto's per deelnemer (gekoppeld via memberships → users)
   memberAvatars = {};
@@ -1971,6 +2058,180 @@ function renderStory() {
       box.appendChild(card);
     });
   });
+}
+
+// ── Prikbord (Pin) ──────────────────────────────────────────────────────────────
+
+let pinFileData = null; // { dataUrl, type, name, isImage }
+
+function openPinSheet() {
+  pinFileData = null;
+  document.getElementById('pinTitle').value = '';
+  document.getElementById('pinBody').value = '';
+  document.getElementById('pinLink').value = '';
+  renderPinFilePreview();
+  document.getElementById('pinSheet').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closePinSheet(e) {
+  if (e && e.target !== document.getElementById('pinSheet')) return;
+  document.getElementById('pinSheet').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+function readAsDataURL(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onerror = rej;
+    r.onload = e => res(e.target.result);
+    r.readAsDataURL(file);
+  });
+}
+
+function triggerPinFile() { document.getElementById('pinFileInput').click(); }
+
+async function handlePinFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  try {
+    if (file.type && file.type.startsWith('image/')) {
+      const dataUrl = await compressImage(file, 1200, 0.8);
+      pinFileData = { dataUrl, type: 'image/jpeg', name: file.name || 'foto.jpg', isImage: true };
+    } else {
+      if (file.size > 4 * 1024 * 1024) { toast('Bestand te groot (max 4 MB)'); event.target.value = ''; return; }
+      const dataUrl = await readAsDataURL(file);
+      pinFileData = { dataUrl, type: file.type || 'application/octet-stream', name: file.name || 'bijlage', isImage: false };
+    }
+    renderPinFilePreview();
+  } catch (e) { toast('Bestand kon niet geladen worden'); }
+  event.target.value = '';
+}
+
+function renderPinFilePreview() {
+  const box = document.getElementById('pinFilePreview');
+  if (!pinFileData) { box.innerHTML = ''; return; }
+  if (pinFileData.isImage) {
+    box.innerHTML = '<img src="' + pinFileData.dataUrl + '" style="width:100%;max-height:180px;object-fit:cover;border-radius:14px;margin-top:8px">' +
+      '<div class="pin-file-chip"><span>🖼️</span><span>' + escHtml(pinFileData.name) + '</span><span class="pfc-x" onclick="clearPinFile()">✕</span></div>';
+  } else {
+    box.innerHTML = '<div class="pin-file-chip"><span>📄</span><span>' + escHtml(pinFileData.name) + '</span><span class="pfc-x" onclick="clearPinFile()">✕</span></div>';
+  }
+}
+
+function clearPinFile() { pinFileData = null; renderPinFilePreview(); }
+
+async function savePin() {
+  const title = document.getElementById('pinTitle').value.trim();
+  const body = document.getElementById('pinBody').value.trim();
+  let link = document.getElementById('pinLink').value.trim();
+  if (!title) { toast('Geef je bericht een titel'); return; }
+  if (link && !/^https?:\/\//i.test(link)) link = 'https://' + link;
+  const row = {
+    group_id: group.id, member_id: selectedMember, title, body: body || null, link: link || null,
+    file_url: pinFileData ? pinFileData.dataUrl : null,
+    file_type: pinFileData ? pinFileData.type : null,
+    file_name: pinFileData ? pinFileData.name : null
+  };
+  const temp = Object.assign({ id: 'temp-' + Date.now(), created_at: new Date().toISOString() }, row);
+  pins.unshift(temp);
+  document.getElementById('pinSheet').classList.add('hidden');
+  document.body.style.overflow = '';
+  renderPins();
+  toast('Op het prikbord geplaatst 📌');
+  const { data, error } = await db.from('pins').insert(row).select().single();
+  if (error) {
+    pins = pins.filter(p => p.id !== temp.id);
+    renderPins();
+    toast('Niet opgeslagen — maak de pins tabel aan in Supabase');
+    return;
+  }
+  const idx = pins.findIndex(p => p.id === temp.id);
+  if (idx >= 0) pins[idx] = data;
+}
+
+function renderPins() {
+  const box = document.getElementById('pinList');
+  box.innerHTML = '';
+  if (!pins.length) {
+    box.innerHTML = '<div class="empty-state"><div class="empty-icon">📌</div><p class="sub" style="margin:0">Nog niets op het prikbord.<br>Deel een tip, activiteit of ticket met de groep.</p></div>';
+    return;
+  }
+  pins.forEach(p => {
+    const mem = members.find(m => m.id === p.member_id);
+    const card = document.createElement('div');
+    card.className = 'pin-card glass';
+    let foot = '<span class="pin-chip">' + escHtml(mem ? mem.name : '?') + ' · ' + formatTime(p) + '</span>';
+    if (p.link) foot += '<span class="pin-chip">🔗 Link</span>';
+    if (p.file_url) foot += '<span class="pin-chip">' + (isImageType(p) ? '🖼️ Foto' : '📄 Bijlage') + '</span>';
+    const thumb = (p.file_url && isImageType(p)) ? '<img class="pc-thumb" src="' + p.file_url + '" alt="">' : '';
+    card.innerHTML =
+      thumb +
+      '<div class="pc-title">' + escHtml(p.title) + '</div>' +
+      (p.body ? '<div class="pc-body">' + escHtml(p.body) + '</div>' : '') +
+      '<div class="pc-foot">' + foot + '</div>';
+    card.onclick = () => openPinDetail(p.id);
+    box.appendChild(card);
+  });
+}
+
+function isImageType(p) { return (p.file_type || '').startsWith('image/'); }
+
+function openPinDetail(id) {
+  const p = pins.find(x => String(x.id) === String(id));
+  if (!p) return;
+  const mem = members.find(m => m.id === p.member_id);
+  const box = document.getElementById('pinDetailContent');
+  let html = '<h3 style="font-size:22px;letter-spacing:-0.4px;padding-right:34px">' + escHtml(p.title) + '</h3>';
+  html += '<div class="pin-detail-meta">' + escHtml(mem ? mem.name : '?') + ' · ' +
+    getTimestamp(p).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long' }) + ' ' + formatTime(p) + '</div>';
+  if (p.file_url && isImageType(p)) html += '<img class="pin-detail-img" src="' + p.file_url + '" alt="">';
+  if (p.body) html += '<div class="pin-detail-body">' + escHtml(p.body) + '</div>';
+  if (p.link) html += '<button class="btn" onclick="window.open(\'' + encodeURI(p.link) + '\',\'_blank\')">🔗 Link openen</button>';
+  if (p.file_url && !isImageType(p)) html += '<button class="btn btn-ghost" style="margin-top:12px" onclick="openPinAttachment(\'' + escHtml(String(p.id)) + '\')">📄 Bijlage openen (' + escHtml(p.file_name || 'bestand') + ')</button>';
+  if (p.file_url && isImageType(p)) html += '<button class="btn btn-ghost" style="margin-top:12px" onclick="openPinAttachment(\'' + escHtml(String(p.id)) + '\')">🖼️ Foto op volledig scherm</button>';
+  html += '<button class="btn btn-sea" style="margin-top:12px" onclick="removePin(\'' + escHtml(String(p.id)) + '\')">🗑️ Verwijderen</button>';
+  box.innerHTML = html;
+  document.getElementById('pinDetailSheet').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closePinDetail(e) {
+  if (e && e.target !== document.getElementById('pinDetailSheet')) return;
+  document.getElementById('pinDetailSheet').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+function openPinAttachment(id) {
+  const p = pins.find(x => String(x.id) === String(id));
+  if (!p || !p.file_url) return;
+  try {
+    const arr = p.file_url.split(',');
+    const mime = (arr[0].match(/:(.*?);/) || [])[1] || p.file_type || 'application/octet-stream';
+    const bstr = atob(arr[1]);
+    let n = bstr.length; const u8 = new Uint8Array(n);
+    while (n--) u8[n] = bstr.charCodeAt(n);
+    const blob = new Blob([u8], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const w = window.open(url, '_blank');
+    if (!w) { const a = document.createElement('a'); a.href = url; a.download = p.file_name || 'bijlage'; document.body.appendChild(a); a.click(); a.remove(); }
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (e) { window.open(p.file_url, '_blank'); }
+}
+
+async function removePin(id) {
+  const idx = pins.findIndex(p => String(p.id) === String(id));
+  if (idx === -1) return;
+  if (!confirm('Dit bericht van het prikbord verwijderen?')) return;
+  const p = pins[idx];
+  pins.splice(idx, 1);
+  closePinDetail();
+  renderPins();
+  toast('Verwijderd');
+  if (!String(p.id).startsWith('temp-')) {
+    const { error } = await db.from('pins').delete().eq('id', p.id);
+    if (error) { pins.splice(idx, 0, p); renderPins(); toast('Verwijderen mislukt'); }
+  }
 }
 
 // ── Overzicht ─────────────────────────────────────────────────────────────────
