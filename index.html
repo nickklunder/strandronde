@@ -707,7 +707,7 @@
   </div>
 
   <!-- Pin / prikbord -->
-  <div class="screen hidden" id="screen-pin">
+  <div class="screen hidden" id="screen-board">
     <h2>Prikbord &#128204;</h2>
     <p class="sub">Deel tips, activiteiten, links en bijlagen met de groep.</p>
     <div id="pinList"></div>
@@ -740,7 +740,7 @@
       <span class="nav-icon">&#10024;</span>
       <span class="nav-label">Momenten</span>
     </button>
-    <button class="nav-tab" id="nav-pin" onclick="show('pin')">
+    <button class="nav-tab" id="nav-board" onclick="show('board')">
       <span class="nav-icon">&#128204;</span>
       <span class="nav-label">Pin</span>
     </button>
@@ -1011,17 +1011,17 @@ const SESSION_KEY = 'strandronde_user';
 function show(name) {
   document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
   document.getElementById('screen-' + name).classList.remove('hidden');
-  const inApp = ['main', 'eten', 'moments', 'pin', 'overview'].includes(name);
+  const inApp = ['main', 'eten', 'moments', 'board', 'overview'].includes(name);
   document.getElementById('bottomNav').classList.toggle('hidden', !inApp);
   if (inApp) {
-    ['main', 'eten', 'moments', 'pin', 'overview'].forEach(tab => {
+    ['main', 'eten', 'moments', 'board', 'overview'].forEach(tab => {
       document.getElementById('nav-' + tab).classList.toggle('active', tab === name);
     });
   }
   if (name === 'overview') renderOverview();
   if (name === 'eten') renderMeals();
   if (name === 'moments') renderStory();
-  if (name === 'pin') renderPins();
+  if (name === 'board') renderPins();
   if (name === 'groups') renderGroups();
   window.scrollTo(0, 0);
 }
